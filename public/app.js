@@ -83,6 +83,10 @@ function selectedOccasion() {
   return occasionOptions.find(occasion => occasion.id === state.selectedOccasionId);
 }
 
+function shouldShowOccasionBanner(occasion) {
+  return Boolean(occasion && !["", "just-for-fun"].includes(occasion.id));
+}
+
 function selectedAddOns() {
   return [...document.querySelectorAll("[data-addon]:checked")].map(input => input.value);
 }
@@ -414,11 +418,18 @@ function renderBookingIntro() {
   if (!experience) return;
 
   const occasion = selectedOccasion();
+  const occasionBanner = el("bookingOccasionBanner");
   setText("bookingIntroTitle", experience.name);
   setText(
     "bookingIntroCopy",
     `${occasion ? `${occasion.label}: ` : ""}${experience.summary} ${experience.durationMinutes} minutes | ${experience.minGuests}-${experience.maxGuests} guests | reservation fee ${dollars(experience.depositCents)}.`
   );
+  if (occasionBanner) {
+    occasionBanner.hidden = !shouldShowOccasionBanner(occasion);
+    occasionBanner.innerHTML = shouldShowOccasionBanner(occasion)
+      ? `<span>Occasion</span><strong>${occasion.label}</strong>`
+      : "";
+  }
 
   const image = el("bookingIntroImage");
   if (image) image.src = experience.imageUrl;
@@ -1026,6 +1037,13 @@ function renderEmployeeDetail(date, row, resource, cell) {
   const target = el("employeeDetail");
   if (!target || !row || !resource || !cell) return;
 
+  const paymentClass = booking => Number(booking.balanceCents || 0) > 0 || booking.paymentStatus !== "paid"
+    ? "has-balance"
+    : "is-paid";
+  const paymentLabel = booking => Number(booking.balanceCents || 0) > 0 || booking.paymentStatus !== "paid"
+    ? `Balance ${dollars(booking.balanceCents)}`
+    : "Paid";
+
   target.innerHTML = `
     <p class="eyebrow">${date} at ${row.time}</p>
     <h2>${resourceCapacityLabel(resource)}</h2>
@@ -1043,7 +1061,8 @@ function renderEmployeeDetail(date, row, resource, cell) {
           <p>${booking.experienceName} | ${booking.guestCount} guests</p>
           ${booking.projectName ? `<p>Project: ${booking.projectName}</p>` : ""}
           ${booking.occasion ? `<p>Occasion: ${booking.occasion}</p>` : ""}
-          <p>Payment: ${(booking.paymentStatus || booking.status).replaceAll("_", " ")} | Balance: ${dollars(booking.balanceCents)} | Waiver: ${booking.waiverStatus.replaceAll("_", " ")}</p>
+          <div class="payment-pill ${paymentClass(booking)}">${paymentLabel(booking)}</div>
+          <p>Payment: ${(booking.paymentStatus || booking.status).replaceAll("_", " ")} | Waiver: ${booking.waiverStatus.replaceAll("_", " ")}</p>
           <div class="employee-booking-actions">
             ${booking.balanceCents > 0 || booking.paymentStatus !== "paid"
               ? `<button type="button" data-employee-payment="${booking.id}">Mark paid in POS</button>`

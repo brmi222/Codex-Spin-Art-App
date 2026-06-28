@@ -751,6 +751,35 @@ body[data-page="landing"] .section-heading .text-link {
   line-height: 1.6;
 }
 
+.occasion-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: fit-content;
+  margin: 0.9rem 0 0.35rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(246, 196, 69, 0.45);
+  border-radius: 8px;
+  color: var(--white);
+  background: rgba(246, 196, 69, 0.16);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
+}
+
+.occasion-banner[hidden] {
+  display: none;
+}
+
+.occasion-banner span {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.occasion-banner strong {
+  color: var(--yellow);
+}
+
 .booking-visual {
   position: relative;
   min-height: 320px;
@@ -1947,6 +1976,29 @@ body[data-page="landing"] .faq-item {
 .employee-detail-bookings p {
   margin: 0.35rem 0 0;
   font-size: 0.9rem;
+}
+
+.payment-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 30px;
+  margin-top: 0.65rem;
+  border-radius: 999px;
+  padding: 0.38rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.payment-pill.is-paid {
+  color: #082421;
+  background: #8fe8ba;
+}
+
+.payment-pill.has-balance {
+  color: var(--white);
+  background: var(--orange);
 }
 
 .employee-booking-actions {
