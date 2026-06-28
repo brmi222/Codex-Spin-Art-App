@@ -19,6 +19,7 @@ const SQUARE_LOCATION_ID = process.env.SQUARE_LOCATION_ID || "";
 const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN || "";
 const SQUARE_WEBHOOK_SIGNATURE_KEY = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY || "";
 const DEFAULT_TAX_RATE_BPS = 725;
+const APPOINTMENT_MINUTES = 60;
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -193,6 +194,11 @@ function publicStore(store) {
     schedule: store.schedule || { availabilityRules: [], blackouts: [] },
     experiences: store.experiences
       .filter(experience => experience.isPublic)
+      .map(experience => ({
+        ...experience,
+        durationMinutes: APPOINTMENT_MINUTES,
+        bufferMinutes: 0
+      }))
       .sort((a, b) => a.displayOrder - b.displayOrder),
     addOns: store.addOns,
     policies: store.policies
@@ -222,6 +228,10 @@ function timeFromMinutes(totalMinutes) {
 
 function addMinutes(date, minutes) {
   return new Date(date.getTime() + minutes * 60_000);
+}
+
+function bookingEndsAt(startsAt) {
+  return addMinutes(startsAt, APPOINTMENT_MINUTES);
 }
 
 function rangesOverlap(aStart, aEnd, bStart, bEnd) {
@@ -363,11 +373,10 @@ function buildSlots(store, experienceId, dateString) {
     const minNotice = Number(rule.minNoticeMinutes || 0);
     const startMinute = minutesFromTime(rule.startTime);
     const endMinute = minutesFromTime(rule.endTime);
-    const durationWithBuffer = experience.durationMinutes + experience.bufferMinutes;
-    for (let minute = startMinute; minute + durationWithBuffer <= endMinute; minute += interval) {
+    for (let minute = startMinute; minute + APPOINTMENT_MINUTES <= endMinute; minute += interval) {
       const time = timeFromMinutes(minute);
       const startsAt = toDateTime(dateString, time);
-      const endsAt = addMinutes(startsAt, durationWithBuffer);
+      const endsAt = bookingEndsAt(startsAt);
       if (startsAt.getTime() - Date.now() < minNotice * 60_000) continue;
       const isBlackout = blackoutRanges.some(range => rangesOverlap(startsAt, endsAt, range.startsAt, range.endsAt));
       const booked = bookedCapacityForSlot(store, experience, startsAt, endsAt);
@@ -483,6 +492,38 @@ function createCheckoutPayment(store, booking, breakdown) {
     createdAt: now,
     updatedAt: now
   };
+}
+
+function recordExternalPayment(store, booking, source = "employee_pos") {
+  const amountCents = Math.max(0, Number(booking.balanceCents || booking.totalCents || 0));
+  const now = new Date().toISOString();
+  const payment = {
+    id: crypto.randomUUID(),
+    bookingId: booking.id,
+    provider: "external_pos",
+    status: "paid",
+    currency: store.settings?.currency || "USD",
+    paymentMode: "external_pos",
+    amountCents,
+    subtotalCents: amountCents,
+    taxCents: 0,
+    providerPaymentId: `${source}_${crypto.randomUUID()}`,
+    checkoutUrl: null,
+    squareLocationId: null,
+    createdAt: now,
+    updatedAt: now,
+    paidAt: now
+  };
+
+  store.payments.push(payment);
+  booking.paymentIds = Array.isArray(booking.paymentIds) ? booking.paymentIds : [];
+  booking.paymentIds.push(payment.id);
+  booking.amountDueNowCents = Math.max(Number(booking.amountDueNowCents || 0), amountCents);
+  booking.balanceCents = 0;
+  booking.paymentStatus = "paid";
+  booking.status = ["pending_payment", "confirmed"].includes(booking.status) ? "paid" : booking.status;
+  booking.paidAt = booking.paidAt || now;
+  return payment;
 }
 
 function usesGroupWaiver(experience) {
@@ -642,20 +683,21 @@ async function handleApi(req, res, url) {
 
     const experience = getExperience(store, payload.experienceId);
     const startsAt = toDateTime(payload.date, payload.time);
-    const endsAt = addMinutes(startsAt, experience.durationMinutes + experience.bufferMinutes);
+    const endsAt = bookingEndsAt(startsAt);
     const guestCount = Number(payload.guestCount);
     const projectOptions = experience.projectOptions || [];
     const projectId = String(payload.projectId || projectOptions[0]?.id || "").trim();
     const project = projectOptions.find(item => item.id === projectId);
     const projectName = String(payload.projectName || project?.name || "").trim();
     const breakdown = pricingBreakdown(store, experience, guestCount, [], projectId, "reservation_fee");
+    const isPaidInPos = payload.paymentStatus === "paid";
     const now = new Date().toISOString();
 
     const booking = {
       id: crypto.randomUUID(),
-      status: "confirmed",
+      status: isPaidInPos ? "paid" : "confirmed",
       source: "employee",
-      paymentMode: "pay_in_store",
+      paymentMode: isPaidInPos ? "external_pos" : "pay_in_store",
       experienceId: experience.id,
       experienceName: experience.name,
       resourceId: experience.resourceId,
@@ -673,10 +715,10 @@ async function handleApi(req, res, url) {
       reservationFeeCents: breakdown.reservationFeeSubtotalCents,
       amountDueNowSubtotalCents: 0,
       amountDueNowTaxCents: 0,
-      amountDueNowCents: 0,
+      amountDueNowCents: isPaidInPos ? breakdown.totalCents : 0,
       depositCents: 0,
-      balanceCents: breakdown.totalCents,
-      paymentStatus: "pay_in_store",
+      balanceCents: isPaidInPos ? 0 : breakdown.totalCents,
+      paymentStatus: isPaidInPos ? "paid" : "pay_in_store",
       paymentIds: [],
       waiverStatus: "not_sent",
       waiver: null,
@@ -691,6 +733,7 @@ async function handleApi(req, res, url) {
       updatedAt: now
     };
 
+    if (isPaidInPos) recordExternalPayment(store, booking);
     store.bookings.push(booking);
     writeStore(store);
     return sendJson(res, 201, { booking });
@@ -703,7 +746,7 @@ async function handleApi(req, res, url) {
 
     const experience = getExperience(store, payload.experienceId);
     const startsAt = toDateTime(payload.date, payload.time);
-    const endsAt = addMinutes(startsAt, experience.durationMinutes + experience.bufferMinutes);
+    const endsAt = bookingEndsAt(startsAt);
     const guestCount = Number(payload.guestCount);
     const addOnIds = Array.isArray(payload.addOnIds) ? payload.addOnIds : [];
     const projectOptions = experience.projectOptions || [];
@@ -878,9 +921,7 @@ async function handleApi(req, res, url) {
     if (payload.paymentStatus && ["pending", "pay_in_store", "paid", "failed", "refunded"].includes(payload.paymentStatus)) {
       booking.paymentStatus = payload.paymentStatus;
       if (payload.paymentStatus === "paid") {
-        booking.balanceCents = 0;
-        booking.paidAt = booking.paidAt || new Date().toISOString();
-        booking.status = ["pending_payment", "confirmed"].includes(booking.status) ? "paid" : booking.status;
+        recordExternalPayment(store, booking);
       }
     }
     if (typeof payload.notes === "string") booking.notes = payload.notes.trim();

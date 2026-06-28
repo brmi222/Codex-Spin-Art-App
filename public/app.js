@@ -19,6 +19,11 @@ const shortDateTime = iso => new Intl.DateTimeFormat("en-US", {
   minute: "2-digit"
 }).format(new Date(iso));
 
+const shortTime = iso => new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit"
+}).format(new Date(iso));
+
 const el = id => document.getElementById(id);
 
 const heroActionWords = [
@@ -1067,12 +1072,9 @@ function renderEmployeeDetail(date, row, resource, cell) {
   const target = el("employeeDetail");
   if (!target || !row || !resource || !cell) return;
 
-  const paymentClass = booking => Number(booking.balanceCents || 0) > 0 || booking.paymentStatus !== "paid"
-    ? "has-balance"
-    : "is-paid";
-  const paymentLabel = booking => Number(booking.balanceCents || 0) > 0 || booking.paymentStatus !== "paid"
-    ? `Balance ${dollars(booking.balanceCents)}`
-    : "Paid";
+  const needsPayment = booking => Number(booking.balanceCents || 0) > 0 && booking.paymentStatus !== "paid";
+  const paymentClass = booking => needsPayment(booking) ? "has-balance" : "is-paid";
+  const paymentLabel = booking => needsPayment(booking) ? `Balance ${dollars(booking.balanceCents)}` : "Paid";
 
   target.innerHTML = `
     <p class="eyebrow">${date} at ${row.time}</p>
@@ -1094,8 +1096,9 @@ function renderEmployeeDetail(date, row, resource, cell) {
           <div class="payment-pill ${paymentClass(booking)}">${paymentLabel(booking)}</div>
           <p>Payment: ${(booking.paymentStatus || booking.status).replaceAll("_", " ")} | Waiver: ${booking.waiverStatus.replaceAll("_", " ")}</p>
           <div class="employee-booking-actions">
-            ${booking.balanceCents > 0 || booking.paymentStatus !== "paid"
-              ? `<button type="button" data-employee-payment="${booking.id}">Mark paid in POS</button>`
+            <button type="button" data-employee-detail="${booking.id}">View details</button>
+            ${needsPayment(booking)
+              ? `<button type="button" data-employee-payment="${booking.id}">Take payment</button>`
               : `<span>Paid</span>`}
             ${booking.waiverStatus !== "signed"
               ? `<button type="button" data-employee-waiver="${booking.id}">Mark waiver signed</button>`
@@ -1106,6 +1109,13 @@ function renderEmployeeDetail(date, row, resource, cell) {
     </div>
   `;
 
+  target.querySelectorAll("[data-employee-detail]").forEach(button => {
+    button.addEventListener("click", () => {
+      const booking = cell.bookings.find(item => item.id === button.dataset.employeeDetail);
+      if (booking) renderEmployeeBookingDetail(date, row, resource, cell, booking);
+    });
+  });
+
   target.querySelectorAll("[data-employee-payment]").forEach(button => {
     button.addEventListener("click", async () => {
       await api(`/api/bookings/${button.dataset.employeePayment}`, {
@@ -1113,7 +1123,7 @@ function renderEmployeeDetail(date, row, resource, cell) {
         body: JSON.stringify({ paymentStatus: "paid" })
       });
       await loadEmployeeDay();
-      target.innerHTML = "<p class=\"eyebrow\">Updated</p><h2>Payment marked paid</h2><p>Select the time slot again to view refreshed details.</p>";
+      target.innerHTML = "<p class=\"eyebrow\">Updated</p><h2>Payment recorded</h2><p>The POS payment has been recorded against this booking.</p>";
     });
   });
 
@@ -1125,6 +1135,109 @@ function renderEmployeeDetail(date, row, resource, cell) {
       });
       await loadEmployeeDay();
       target.innerHTML = "<p class=\"eyebrow\">Updated</p><h2>Waiver marked signed</h2><p>Select the time slot again to view refreshed details.</p>";
+    });
+  });
+}
+
+function renderEmployeeBookingDetail(date, row, resource, cell, booking) {
+  const target = el("employeeDetail");
+  if (!target || !booking) return;
+
+  const initials = String(booking.customer?.name || "?")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase())
+    .join("") || "?";
+  const balance = Number(booking.balanceCents || 0);
+  const total = Number(booking.totalCents || 0);
+  const tax = Number(booking.taxCents || 0);
+  const subtotal = Number(booking.subtotalCents || Math.max(0, total - tax));
+  const paid = Math.max(0, total - balance);
+  const addons = (booking.addOnIds || [])
+    .map(addOnId => state.config.addOns.find(addOn => addOn.id === addOnId)?.name)
+    .filter(Boolean);
+
+  target.innerHTML = `
+    <button type="button" class="employee-back-button" id="employeeBackToSlot">Back to ${row.time}</button>
+    <div class="employee-customer-card">
+      <div class="employee-avatar">${initials}</div>
+      <div>
+        <p class="eyebrow">Booking</p>
+        <h2>${booking.customer.name}</h2>
+        <p>${booking.customer.phone || "No phone"}${booking.customer.email ? ` | ${booking.customer.email}` : ""}</p>
+      </div>
+    </div>
+
+    <div class="employee-detail-tabs">
+      <span>Purchases</span>
+      <span>Customer</span>
+      <span>Payments</span>
+      <span>Notes</span>
+    </div>
+
+    <article class="employee-booking-summary">
+      <header>
+        <div>
+          <strong>${booking.experienceName}</strong>
+          <p>${shortDateTime(booking.startsAt)}-${shortTime(booking.endsAt)} | ${resourceCapacityLabel(resource)}</p>
+        </div>
+        <span>${booking.guestCount} guests</span>
+      </header>
+      ${booking.projectName ? `<p><b>Project:</b> ${booking.projectName}</p>` : ""}
+      ${addons.length ? `<p><b>Add-ons:</b> ${addons.join(", ")}</p>` : ""}
+      ${booking.occasion ? `<p><b>Occasion:</b> ${booking.occasion}</p>` : ""}
+    </article>
+
+    <div class="employee-total-grid">
+      <div><span>Subtotal</span><strong>${dollars(subtotal)}</strong></div>
+      <div><span>Tax</span><strong>${dollars(tax)}</strong></div>
+      <div><span>Total</span><strong>${dollars(total)}</strong></div>
+      <div><span>Paid</span><strong>${dollars(paid)}</strong></div>
+      <div><span>Balance</span><strong>${dollars(balance)}</strong></div>
+    </div>
+
+    <div class="employee-booking-actions">
+      ${balance > 0 && booking.paymentStatus !== "paid"
+        ? `<button type="button" data-employee-payment="${booking.id}">Take payment</button>`
+        : `<span>Paid</span>`}
+      ${booking.waiverStatus !== "signed"
+        ? `<button type="button" data-employee-waiver="${booking.id}">Mark waiver signed</button>`
+        : `<span>Waiver signed</span>`}
+    </div>
+
+    <section class="employee-notes-card">
+      <strong>Notes</strong>
+      <p>${booking.notes || "No notes have been created yet."}</p>
+    </section>
+    <section class="employee-activity-card">
+      <strong>Activity</strong>
+      <p>${booking.source === "employee" ? "Staff created this booking" : "Customer created this booking"} on ${shortDateTime(booking.createdAt)}.</p>
+      ${booking.paidAt ? `<p>Payment recorded ${shortDateTime(booking.paidAt)}.</p>` : ""}
+    </section>
+  `;
+
+  el("employeeBackToSlot")?.addEventListener("click", () => renderEmployeeDetail(date, row, resource, cell));
+  target.querySelectorAll("[data-employee-payment]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const result = await api(`/api/bookings/${button.dataset.employeePayment}`, {
+        method: "PATCH",
+        body: JSON.stringify({ paymentStatus: "paid" })
+      });
+      cell.bookings = cell.bookings.map(item => item.id === result.booking.id ? result.booking : item);
+      renderEmployeeBookingDetail(date, row, resource, cell, result.booking);
+      await loadEmployeeDay();
+    });
+  });
+  target.querySelectorAll("[data-employee-waiver]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const result = await api(`/api/bookings/${button.dataset.employeeWaiver}`, {
+        method: "PATCH",
+        body: JSON.stringify({ waiverStatus: "signed" })
+      });
+      cell.bookings = cell.bookings.map(item => item.id === result.booking.id ? result.booking : item);
+      renderEmployeeBookingDetail(date, row, resource, cell, result.booking);
+      await loadEmployeeDay();
     });
   });
 }
@@ -1147,6 +1260,9 @@ async function submitEmployeeAppointment(event) {
       },
       notes: el("employeeNotesInput").value
     };
+    if (el("employeePaymentInput")?.value === "paid") {
+      payload.paymentStatus = "paid";
+    }
 
     const result = await api("/api/employee/bookings", {
       method: "POST",
