@@ -460,26 +460,18 @@ function validateBookingPayload(store, payload) {
   }
 
   if (!usesGroupWaiver(experience)) {
-    const waivers = Array.isArray(payload.waivers) ? payload.waivers : [];
-    if (waivers.length !== guestCount) {
-      return "Complete a waiver for each participant before reserving.";
+    const waiver = payload.waiver || {};
+    const participants = Array.isArray(waiver.participants) ? waiver.participants : [];
+    if (!waiver.signerName || !waiver.signature || !waiver.riskAccepted) {
+      return "Complete the waiver acknowledgement before reserving.";
     }
-    for (const waiver of waivers) {
-      const address = waiver.address || {};
-      if (
-        !waiver.participantName ||
-        !waiver.participantDateOfBirth ||
-        !address.street ||
-        !address.city ||
-        !address.state ||
-        !address.zip ||
-        !waiver.signature ||
-        !waiver.riskAccepted
-      ) {
-        return "Complete each participant waiver before reserving.";
-      }
-      if (waiver.participantType === "minor" && (!waiver.guardianName || !waiver.guardianRelationship)) {
-        return "Parent or guardian information is required for each minor.";
+    if (participants.length !== guestCount) {
+      return "Add a participant name for each guest before reserving.";
+    }
+    for (const participant of participants) {
+      if (!participant.name) return "Add each participant name before reserving.";
+      if (participant.participantType === "minor" && !participant.guardianName) {
+        return "Parent or guardian name is required for each minor.";
       }
     }
   }

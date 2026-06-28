@@ -1001,6 +1001,37 @@ textarea {
   margin-top: 0;
 }
 
+.participant-list {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.9rem;
+}
+
+.participant-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(180px, 1fr) minmax(120px, 0.45fr) minmax(180px, 0.8fr);
+  gap: 0.65rem;
+  align-items: end;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+}
+
+.participant-row strong {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  color: var(--white);
+  background: var(--teal);
+}
+
+.participant-row label {
+  margin-top: 0;
+}
+
 .participant-waiver-card h3 {
   margin: 0;
   color: var(--ink);
@@ -2016,7 +2047,8 @@ body[data-page="landing"] .faq-item {
   }
 
   .field-grid,
-  .addon-list {
+  .addon-list,
+  .participant-row {
     grid-template-columns: 1fr;
   }
 

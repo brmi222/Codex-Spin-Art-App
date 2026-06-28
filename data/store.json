@@ -251,7 +251,8 @@
       "addOnIds": [
         "glitter-finish",
         "extra-paints",
-        "booking-insurance"
+        "booking-insurance",
+        "quick-dry"
       ],
       "availability": {
         "daysOfWeek": [
@@ -314,7 +315,8 @@
       "addOnIds": [
         "glitter-finish",
         "extra-paints",
-        "booking-insurance"
+        "booking-insurance",
+        "quick-dry"
       ],
       "availability": {
         "daysOfWeek": [
@@ -601,6 +603,12 @@
       "name": "Snack Table Setup",
       "description": "Reserved snack table with setup support.",
       "priceCents": 4500
+    },
+    {
+      "id": "quick-dry",
+      "name": "Quick Dry",
+      "description": "Speed up dry time for canvas projects when guests want to take art home sooner.",
+      "priceCents": 1000
     }
   ],
   "policies": {

@@ -491,76 +491,62 @@ function renderWaiverFields() {
   }
 
   const guestCount = Math.max(1, Number(el("guestInput")?.value || experience.minGuests || 1));
-  target.innerHTML = Array.from({ length: guestCount }, (_, index) => {
+  const participantRows = Array.from({ length: guestCount }, (_, index) => {
     const number = index + 1;
     return `
-      <article class="participant-waiver-card" data-waiver-card="${index}">
-        <h3>Participant ${number}</h3>
-        <div class="field-grid waiver-grid">
-          <label>
-            Participant name
-            <input type="text" data-waiver-field="participantName" autocomplete="name" required>
-          </label>
-          <label>
-            Date of birth
-            <input type="date" data-waiver-field="participantDateOfBirth" required>
-          </label>
-          <label>
-            Participant type
-            <select data-waiver-field="participantType" required>
-              <option value="adult">Adult participant</option>
-              <option value="minor">Minor participant - parent/guardian signing</option>
-            </select>
-          </label>
-          <label>
-            Street address
-            <input type="text" data-waiver-field="street" autocomplete="street-address" required>
-          </label>
-          <label>
-            City
-            <input type="text" data-waiver-field="city" autocomplete="address-level2" required>
-          </label>
-          <label>
-            State
-            <input type="text" data-waiver-field="state" autocomplete="address-level1" maxlength="2" required>
-          </label>
-          <label>
-            ZIP
-            <input type="text" data-waiver-field="zip" autocomplete="postal-code" required>
-          </label>
-        </div>
-        <div class="field-grid waiver-guardian-fields" data-guardian-fields hidden>
-          <label>
-            Parent/guardian name
-            <input type="text" data-waiver-field="guardianName" autocomplete="name">
-          </label>
-          <label>
-            Relationship to minor
-            <input type="text" data-waiver-field="guardianRelationship">
-          </label>
-        </div>
-        <div class="waiver-copy">
-          <p>I understand this is a hands-on paint experience with wet paint, splatter, movement, tools, and studio surfaces that may be slippery or messy.</p>
-          <p>I agree to follow staff instructions, wear provided protective gear when required, and accept responsibility for personal belongings and clothing.</p>
-        </div>
-        <label class="waiver-check">
-          <input type="checkbox" data-waiver-field="riskAccepted" required>
-          <span>I acknowledge the activity risks and agree to participate safely.</span>
-        </label>
-        <label class="waiver-check">
-          <input type="checkbox" data-waiver-field="photoReleaseAccepted">
-          <span>Spin Art Raleigh may use photos or videos from this visit for marketing. I can ask staff not to photograph this participant.</span>
+      <article class="participant-row" data-participant-row="${index}">
+        <strong>${number}</strong>
+        <label>
+          Participant name
+          <input type="text" data-participant-field="name" autocomplete="name" required>
         </label>
         <label>
-          Type full name as signature
-          <input type="text" data-waiver-field="signature" required>
+          Type
+          <select data-participant-field="participantType" required>
+            <option value="adult">Adult</option>
+            <option value="minor">Minor</option>
+          </select>
         </label>
+        <div class="waiver-guardian-fields" data-guardian-fields hidden>
+          <label>
+            Parent/guardian name for minor
+            <input type="text" data-participant-field="guardianName" autocomplete="name">
+          </label>
+        </div>
       </article>
     `;
   }).join("");
 
-  document.querySelectorAll("[data-waiver-card]").forEach(card => {
-    const participantType = card.querySelector("[data-waiver-field='participantType']");
+  target.innerHTML = `
+    <div class="waiver-copy">
+      <p>I understand this is a hands-on paint experience with wet paint, splatter, movement, tools, and studio surfaces that may be slippery or messy.</p>
+      <p>I agree that the listed participants will follow staff instructions, wear provided protective gear when required, and accept responsibility for personal belongings and clothing.</p>
+    </div>
+    <div class="participant-list">
+      ${participantRows}
+    </div>
+    <div class="field-grid waiver-grid">
+      <label>
+        Responsible signer
+        <input type="text" id="waiverSignerInput" autocomplete="name" required>
+      </label>
+      <label>
+        Type full name as signature
+        <input type="text" id="waiverSignatureInput" required>
+      </label>
+    </div>
+    <label class="waiver-check">
+      <input type="checkbox" id="waiverRiskInput" required>
+      <span>I acknowledge the activity risks and agree for myself and/or the listed participants to participate safely.</span>
+    </label>
+    <label class="waiver-check">
+      <input type="checkbox" id="waiverPhotoInput">
+      <span>Spin Art Raleigh may use photos or videos from this visit for marketing. I can ask staff not to photograph our group.</span>
+    </label>
+  `;
+
+  document.querySelectorAll("[data-participant-row]").forEach(card => {
+    const participantType = card.querySelector("[data-participant-field='participantType']");
     const guardianFields = card.querySelector("[data-guardian-fields]");
     const syncGuardianFields = () => {
       const isMinor = participantType.value === "minor";
@@ -575,27 +561,23 @@ function renderWaiverFields() {
 }
 
 function participantWaivers() {
-  return [...document.querySelectorAll("[data-waiver-card]")].map(card => {
-    const value = field => card.querySelector(`[data-waiver-field='${field}']`)?.value.trim() || "";
-    const checked = field => Boolean(card.querySelector(`[data-waiver-field='${field}']`)?.checked);
+  const participants = [...document.querySelectorAll("[data-participant-row]")].map(card => {
+    const value = field => card.querySelector(`[data-participant-field='${field}']`)?.value.trim() || "";
     return {
-      type: "individual",
-      participantName: value("participantName"),
-      participantDateOfBirth: value("participantDateOfBirth"),
+      name: value("name"),
       participantType: value("participantType") || "adult",
-      address: {
-        street: value("street"),
-        city: value("city"),
-        state: value("state"),
-        zip: value("zip")
-      },
-      guardianName: value("guardianName"),
-      guardianRelationship: value("guardianRelationship"),
-      riskAccepted: checked("riskAccepted"),
-      photoReleaseAccepted: checked("photoReleaseAccepted"),
-      signature: value("signature")
+      guardianName: value("guardianName")
     };
   });
+
+  return {
+    type: "participant_list",
+    signerName: el("waiverSignerInput")?.value.trim() || "",
+    signature: el("waiverSignatureInput")?.value.trim() || "",
+    riskAccepted: Boolean(el("waiverRiskInput")?.checked),
+    photoReleaseAccepted: Boolean(el("waiverPhotoInput")?.checked),
+    participants
+  };
 }
 
 function syncGuestBounds() {
@@ -616,8 +598,10 @@ async function loadAvailability() {
 
   const payload = await api(`/api/availability?experienceId=${encodeURIComponent(experience.id)}&date=${encodeURIComponent(dateInput.value)}`);
   const available = payload.slots.filter(slot => slot.isAvailable);
+  const resource = state.config.resources.find(item => item.id === experience.resourceId);
+  const unit = resource ? resourceCapacityUnit(resource) : "spots";
   timeInput.innerHTML = available.length
-    ? available.map(slot => `<option value="${slot.time}">${slot.time} | ${slot.remaining} spots</option>`).join("")
+    ? available.map(slot => `<option value="${slot.time}">${slot.time} | ${slot.remaining} ${unit}</option>`).join("")
     : "<option value=\"\">No available times</option>";
 }
 
@@ -628,6 +612,7 @@ async function submitBooking(event) {
   renderPaymentPanel(null, null);
 
   try {
+    const waiverData = usesGroupWaiver(experience) ? null : participantWaivers();
     const payload = {
       experienceId: experience.id,
       date: el("dateInput").value,
@@ -640,12 +625,12 @@ async function submitBooking(event) {
       occasionId: state.selectedOccasionId || el("occasionInput")?.value || "",
       waiverAccepted: usesGroupWaiver(experience)
         ? Boolean(el("waiverInput")?.checked)
-        : participantWaivers().every(waiver => waiver.riskAccepted && waiver.signature),
+        : waiverData.riskAccepted && Boolean(waiverData.signature),
       waiver: usesGroupWaiver(experience) ? {
         type: "group_acknowledgement",
         accepted: Boolean(el("waiverInput")?.checked)
-      } : null,
-      waivers: usesGroupWaiver(experience) ? [] : participantWaivers(),
+      } : waiverData,
+      waivers: [],
       paymentMode: el("paymentMode").value,
       customer: {
         name: el("nameInput").value,
