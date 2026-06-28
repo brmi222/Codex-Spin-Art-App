@@ -125,8 +125,8 @@
     "sections": [
       {
         "id": "private-events",
-        "title": "Book the room, the color, and the celebration",
-        "body": "Birthday parties, team outings, school groups, and private events can move from discovery to checkout without staff chasing details."
+        "title": "Birthday parties and corporate events without the back-and-forth",
+        "body": "Birthday parties, team outings, school groups, and corporate events can move from discovery to checkout without staff chasing details."
       },
       {
         "id": "ready-for-staff",
@@ -140,8 +140,8 @@
         "answer": "Yes. Add-ons are configured per experience, so upsells can change without editing code."
       },
       {
-        "question": "Can we block private events?",
-        "answer": "Yes. Private bookings reserve capacity for the selected resource and prevent double-booking."
+        "question": "Can we reserve the room for birthdays or corporate events?",
+        "answer": "Yes. Birthday parties and corporate events reserve the appropriate room/resource and prevent double-booking."
       }
     ]
   },
@@ -493,10 +493,10 @@
     },
     {
       "id": "group-events",
-      "slug": "group-events",
-      "name": "Group Events",
-      "summary": "Creative group sessions for teams, schools, clubs, and organizations.",
-      "description": "A hosted group experience with flexible participant counts, shared setup, and add-ons for larger crews.",
+      "slug": "corporate-events",
+      "name": "Corporate Events",
+      "summary": "Creative team-building sessions for companies, schools, clubs, and organizations.",
+      "description": "A hosted group experience with flexible participant counts, shared setup, and add-ons for work teams, schools, clubs, and organizations.",
       "durationMinutes": 90,
       "basePriceCents": 45000,
       "pricingType": "flat",
@@ -506,7 +506,7 @@
       "resourceId": "birthday-room",
       "bufferMinutes": 30,
       "isPublic": true,
-      "displayOrder": 5,
+      "displayOrder": 6,
       "imageUrl": "/assets/spin-art-group-events-01-web.jpg",
       "includedItems": [
         "Reserved group block",
@@ -515,8 +515,8 @@
       ],
       "projectOptions": [
         {
-          "id": "group-planning",
-          "name": "Decide with the studio",
+          "id": "corporate-planning",
+          "name": "Plan with the studio",
           "description": "We will coordinate the best project mix for your group.",
           "priceCents": 0
         }
@@ -542,10 +542,10 @@
     },
     {
       "id": "private-events",
-      "slug": "private-events",
-      "name": "Private Events",
-      "summary": "Reserve the party zone for birthdays, celebrations, and private bookings.",
-      "description": "A private hosted experience with time for art, photos, celebration, setup, and cleanup.",
+      "slug": "birthday-party",
+      "name": "Birthday Party",
+      "summary": "Reserve the party zone for birthdays with a hosted art experience.",
+      "description": "A private hosted birthday party with time for art, photos, celebration, setup, and cleanup.",
       "durationMinutes": 120,
       "basePriceCents": 32000,
       "pricingType": "flat",
@@ -555,7 +555,7 @@
       "resourceId": "birthday-room",
       "bufferMinutes": 30,
       "isPublic": true,
-      "displayOrder": 6,
+      "displayOrder": 5,
       "imageUrl": "/assets/drive-2632.jpg",
       "includedItems": [
         "Private party space",
@@ -564,9 +564,9 @@
       ],
       "projectOptions": [
         {
-          "id": "private-planning",
-          "name": "Decide with the studio",
-          "description": "We will coordinate the best project mix for your party.",
+          "id": "birthday-planning",
+          "name": "Plan with the studio",
+          "description": "We will coordinate the best project mix for your birthday party.",
           "priceCents": 0
         }
       ],
@@ -813,7 +813,7 @@
       },
       {
         "id": "rule-private-weekends",
-        "name": "Private events weekends",
+        "name": "Birthday parties weekends",
         "resourceId": "birthday-room",
         "experienceIds": [
           "private-events"
