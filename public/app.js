@@ -911,6 +911,90 @@ function daysLabel(days = []) {
   return days.map(day => weekdayOptions.find(([value]) => Number(value) === Number(day))?.[1] || day).join(", ");
 }
 
+function setDefaultEmployeeDate() {
+  const dateInput = el("employeeDate");
+  if (!dateInput) return;
+  dateInput.value = new Date().toISOString().slice(0, 10);
+}
+
+function resourceCapacityLabel(resource) {
+  return `${resource.calendarLabel || resource.name} (${resource.capacity})`;
+}
+
+function activeCellClass(cell) {
+  if (cell.booked <= 0) return "is-open";
+  if (cell.available <= 0) return "is-full";
+  return "is-partial";
+}
+
+async function loadEmployeeDay() {
+  const date = el("employeeDate")?.value || new Date().toISOString().slice(0, 10);
+  const payload = await api(`/api/employee/day?date=${encodeURIComponent(date)}`);
+  renderEmployeeCalendar(payload);
+}
+
+function renderEmployeeCalendar(day) {
+  const target = el("employeeCalendar");
+  if (!target) return;
+
+  target.style.setProperty("--resource-count", String(day.resources.length || 1));
+  target.innerHTML = `
+    <div class="employee-calendar-corner">Time</div>
+    ${day.resources.map(resource => `
+      <div class="employee-calendar-head">
+        <strong>${resourceCapacityLabel(resource)}</strong>
+        <span>${resource.capacityMode === "bookings" ? "bookings" : "spots"}</span>
+      </div>
+    `).join("")}
+    ${day.rows.map(row => `
+      <div class="employee-time">${row.time}</div>
+      ${row.cells.map(cell => `
+        <button type="button" class="employee-cell ${activeCellClass(cell)}" data-time="${row.time}" data-resource="${cell.resourceId}">
+          <strong>${cell.booked}/${cell.capacity}</strong>
+          <span>${cell.available} available</span>
+        </button>
+      `).join("")}
+    `).join("")}
+  `;
+
+  target.querySelectorAll("[data-resource]").forEach(button => {
+    button.addEventListener("click", () => {
+      const row = day.rows.find(item => item.time === button.dataset.time);
+      const resource = day.resources.find(item => item.id === button.dataset.resource);
+      const cell = row?.cells.find(item => item.resourceId === button.dataset.resource);
+      renderEmployeeDetail(day.date, row, resource, cell);
+    });
+  });
+}
+
+function renderEmployeeDetail(date, row, resource, cell) {
+  const target = el("employeeDetail");
+  if (!target || !row || !resource || !cell) return;
+
+  target.innerHTML = `
+    <p class="eyebrow">${date} at ${row.time}</p>
+    <h2>${resourceCapacityLabel(resource)}</h2>
+    <div class="employee-detail-metric">
+      <strong>${cell.booked}/${cell.capacity}</strong>
+      <span>${cell.available} available</span>
+    </div>
+    <div class="employee-detail-bookings">
+      ${cell.bookings.length ? cell.bookings.map(booking => `
+        <article>
+          <header>
+            <strong>${booking.customer.name}</strong>
+            <small>${booking.status.replaceAll("_", " ")}</small>
+          </header>
+          <p>${booking.experienceName} | ${booking.guestCount} guests</p>
+          ${booking.projectName ? `<p>Project: ${booking.projectName}</p>` : ""}
+          ${booking.occasion ? `<p>Occasion: ${booking.occasion}</p>` : ""}
+          <p>Payment: ${(booking.paymentStatus || booking.status).replaceAll("_", " ")} | Waiver: ${booking.waiverStatus.replaceAll("_", " ")}</p>
+        </article>
+      `).join("") : "<p>No bookings in this period.</p>"}
+    </div>
+  `;
+}
+
 function selectedRuleDays() {
   return [...document.querySelectorAll("#ruleDays input:checked")].map(input => Number(input.value));
 }
@@ -1009,6 +1093,13 @@ async function initAdmin() {
   el("blackoutForm").addEventListener("submit", addBlackout);
 }
 
+async function initEmployee() {
+  setDefaultEmployeeDate();
+  await loadEmployeeDay();
+  el("employeeDate").addEventListener("change", loadEmployeeDay);
+  el("refreshEmployee").addEventListener("click", loadEmployeeDay);
+}
+
 async function init() {
   state.config = await api("/api/config");
   state.selectedExperienceId = state.config.experiences[0].id;
@@ -1026,6 +1117,7 @@ async function init() {
   if (page === "landing") await initLanding();
   if (page === "booking") await initBooking();
   if (page === "admin") await initAdmin();
+  if (page === "employee") await initEmployee();
 }
 
 init().catch(error => {

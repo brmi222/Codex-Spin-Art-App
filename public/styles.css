@@ -1661,13 +1661,225 @@ body[data-page="landing"] .faq-item {
   background: #dde4ef;
 }
 
+.employee-page {
+  min-height: calc(100vh - 74px);
+  padding: clamp(1.25rem, 3vw, 2rem);
+  background:
+    radial-gradient(circle at 8% 8%, rgba(22, 163, 168, 0.2), transparent 22%),
+    radial-gradient(circle at 88% 6%, rgba(255, 79, 18, 0.18), transparent 24%),
+    #182031;
+  color: var(--white);
+}
+
+.employee-hero,
+.employee-layout {
+  max-width: 1420px;
+  margin: 0 auto;
+}
+
+.employee-hero {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.employee-hero h1 {
+  margin: 0;
+  font-size: clamp(2.1rem, 4.6vw, 4.4rem);
+  line-height: 0.9;
+}
+
+.employee-date-control {
+  min-width: 220px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.employee-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 1rem;
+  align-items: start;
+}
+
+.employee-calendar-shell,
+.employee-detail {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
+}
+
+.employee-calendar-shell {
+  overflow: auto;
+}
+
+.employee-calendar {
+  display: grid;
+  grid-template-columns: 82px repeat(var(--resource-count), minmax(148px, 1fr));
+  min-width: 720px;
+}
+
+.employee-calendar-corner,
+.employee-calendar-head,
+.employee-time,
+.employee-cell {
+  min-height: 58px;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.employee-calendar-corner,
+.employee-calendar-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #121a2a;
+}
+
+.employee-calendar-corner,
+.employee-time {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.68);
+  background: #121a2a;
+  font-weight: 900;
+}
+
+.employee-calendar-head {
+  display: grid;
+  align-content: center;
+  gap: 0.15rem;
+  padding: 0.7rem;
+}
+
+.employee-calendar-head strong,
+.employee-calendar-head span {
+  display: block;
+}
+
+.employee-calendar-head span {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.employee-cell {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 0.2rem;
+  width: 100%;
+  border-radius: 0;
+  padding: 0.62rem 0.7rem;
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.06);
+  text-align: left;
+}
+
+.employee-cell strong {
+  font-size: 1.05rem;
+}
+
+.employee-cell span {
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.employee-cell.is-open:hover {
+  background: rgba(22, 163, 168, 0.2);
+}
+
+.employee-cell.is-partial {
+  background: rgba(246, 196, 69, 0.18);
+}
+
+.employee-cell.is-full {
+  background: rgba(255, 79, 18, 0.22);
+}
+
+.employee-cell.is-partial:hover,
+.employee-cell.is-full:hover {
+  outline: 2px solid rgba(255, 255, 255, 0.3);
+  outline-offset: -2px;
+}
+
+.employee-detail {
+  position: sticky;
+  top: 90px;
+  padding: 1rem;
+  color: var(--white);
+}
+
+.employee-detail h2 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.employee-detail p {
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.45;
+}
+
+.employee-detail-metric {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+  padding: 0.85rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.employee-detail-metric strong {
+  font-size: 2rem;
+}
+
+.employee-detail-metric span {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 850;
+}
+
+.employee-detail-bookings {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.employee-detail-bookings article {
+  padding: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.employee-detail-bookings header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.employee-detail-bookings p {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+}
+
 @media (max-width: 860px) {
   .topbar,
   .form-header,
   .payment-panel,
   .summary-row,
   .admin-header,
-  .admin-hero {
+  .admin-hero,
+  .employee-hero {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -1681,6 +1893,7 @@ body[data-page="landing"] .faq-item {
   .booking-shell,
   .page-intro,
   .occasion-hero,
+  .employee-layout,
   .split,
   .admin-grid,
   .admin-stats,

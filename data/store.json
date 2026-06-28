@@ -148,50 +148,53 @@
   "resources": [
     {
       "id": "spin-stations",
-      "name": "Spin Stations",
-      "capacity": 8,
+      "name": "Spin",
+      "calendarLabel": "Spin",
+      "capacity": 6,
       "capacityMode": "guests",
       "isExclusive": false,
+      "isEmployeeVisible": true,
+      "displayOrder": 1,
       "experienceIds": [
-        "spin"
-      ]
-    },
-    {
-      "id": "splatter-room",
-      "name": "Splatter Room",
-      "capacity": 8,
-      "capacityMode": "guests",
-      "isExclusive": true,
-      "experienceIds": [
-        "splatter"
-      ]
-    },
-    {
-      "id": "pour-stations",
-      "name": "Pour Stations",
-      "capacity": 10,
-      "capacityMode": "guests",
-      "isExclusive": false,
-      "experienceIds": [
+        "spin",
         "pour-art"
       ]
     },
     {
       "id": "tumbler-stations",
-      "name": "Tumbler Stations",
-      "capacity": 8,
+      "name": "Tumbler",
+      "calendarLabel": "Tumbler",
+      "capacity": 3,
       "capacityMode": "guests",
       "isExclusive": false,
+      "isEmployeeVisible": true,
+      "displayOrder": 2,
       "experienceIds": [
         "tumblers"
       ]
     },
     {
-      "id": "party-zone",
-      "name": "Party Zone",
-      "capacity": 24,
+      "id": "splatter-room",
+      "name": "Splatter",
+      "calendarLabel": "Splatter",
+      "capacity": 15,
       "capacityMode": "guests",
+      "isExclusive": false,
+      "isEmployeeVisible": true,
+      "displayOrder": 3,
+      "experienceIds": [
+        "splatter"
+      ]
+    },
+    {
+      "id": "birthday-room",
+      "name": "Birthday",
+      "calendarLabel": "Birthday",
+      "capacity": 1,
+      "capacityMode": "bookings",
       "isExclusive": true,
+      "isEmployeeVisible": true,
+      "displayOrder": 4,
       "experienceIds": [
         "group-events",
         "private-events"
@@ -210,7 +213,7 @@
       "pricingType": "per_guest",
       "depositCents": 3500,
       "minGuests": 1,
-      "maxGuests": 8,
+      "maxGuests": 15,
       "resourceId": "splatter-room",
       "bufferMinutes": 15,
       "isPublic": true,
@@ -273,7 +276,7 @@
       "pricingType": "per_guest",
       "depositCents": 2800,
       "minGuests": 1,
-      "maxGuests": 8,
+      "maxGuests": 6,
       "resourceId": "spin-stations",
       "bufferMinutes": 15,
       "isPublic": true,
@@ -336,8 +339,8 @@
       "pricingType": "per_guest",
       "depositCents": 3200,
       "minGuests": 1,
-      "maxGuests": 10,
-      "resourceId": "pour-stations",
+      "maxGuests": 6,
+      "resourceId": "spin-stations",
       "bufferMinutes": 15,
       "isPublic": true,
       "displayOrder": 3,
@@ -411,7 +414,7 @@
       "pricingType": "per_guest",
       "depositCents": 4500,
       "minGuests": 1,
-      "maxGuests": 8,
+      "maxGuests": 3,
       "resourceId": "tumbler-stations",
       "bufferMinutes": 20,
       "isPublic": true,
@@ -467,7 +470,7 @@
       "depositCents": 15000,
       "minGuests": 10,
       "maxGuests": 24,
-      "resourceId": "party-zone",
+      "resourceId": "birthday-room",
       "bufferMinutes": 30,
       "isPublic": true,
       "displayOrder": 5,
@@ -515,7 +518,7 @@
       "depositCents": 10000,
       "minGuests": 8,
       "maxGuests": 24,
-      "resourceId": "party-zone",
+      "resourceId": "birthday-room",
       "bufferMinutes": 30,
       "isPublic": true,
       "displayOrder": 6,
@@ -676,10 +679,11 @@
     "availabilityRules": [
       {
         "id": "rule-spin-open-studio",
-        "name": "Spin open studio",
+        "name": "Spin and pour open studio",
         "resourceId": "spin-stations",
         "experienceIds": [
-          "spin"
+          "spin",
+          "pour-art"
         ],
         "daysOfWeek": [
           0,
@@ -719,28 +723,6 @@
         "isActive": true
       },
       {
-        "id": "rule-pour-open-studio",
-        "name": "Pour art open studio",
-        "resourceId": "pour-stations",
-        "experienceIds": [
-          "pour-art"
-        ],
-        "daysOfWeek": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5,
-          6
-        ],
-        "startTime": "10:00",
-        "endTime": "22:00",
-        "slotIntervalMinutes": 30,
-        "minNoticeMinutes": 120,
-        "isActive": true
-      },
-      {
         "id": "rule-tumblers-open-studio",
         "name": "Tumblers open studio",
         "resourceId": "tumbler-stations",
@@ -765,7 +747,7 @@
       {
         "id": "rule-groups-weekdays",
         "name": "Group events weekdays",
-        "resourceId": "party-zone",
+        "resourceId": "birthday-room",
         "experienceIds": [
           "group-events"
         ],
@@ -785,7 +767,7 @@
       {
         "id": "rule-private-weekends",
         "name": "Private events weekends",
-        "resourceId": "party-zone",
+        "resourceId": "birthday-room",
         "experienceIds": [
           "private-events"
         ],

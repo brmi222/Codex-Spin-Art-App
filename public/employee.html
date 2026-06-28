@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Employee | Spin Art Raleigh</title>
+    <link rel="stylesheet" href="/styles.css?v=19">
+  </head>
+  <body data-page="employee">
+    <header class="topbar admin-topbar">
+      <a class="brand" href="/" aria-label="Spin Art Raleigh home">
+        <span class="brand-mark"><img id="navLogo" src="/assets/spin-art-logo.png" alt=""></span>
+        <span>
+          <strong>Spin Art Raleigh</strong>
+          <small>Employee</small>
+        </span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="/">Home</a>
+        <a href="/book.html">Book</a>
+        <a href="/admin.html">Admin</a>
+        <button type="button" id="refreshEmployee">Refresh</button>
+      </nav>
+    </header>
+
+    <main class="employee-page">
+      <section class="employee-hero">
+        <div>
+          <p class="eyebrow">Day view</p>
+          <h1>Studio schedule</h1>
+        </div>
+        <label class="employee-date-control">
+          Date
+          <input type="date" id="employeeDate">
+        </label>
+      </section>
+
+      <section class="employee-layout" aria-label="Employee calendar">
+        <div class="employee-calendar-shell">
+          <div class="employee-calendar" id="employeeCalendar"></div>
+        </div>
+        <aside class="employee-detail" id="employeeDetail">
+          <p class="eyebrow">Selected time</p>
+          <h2>Pick a calendar cell</h2>
+          <p>Click any time/resource intersection to see the bookings for that period.</p>
+        </aside>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

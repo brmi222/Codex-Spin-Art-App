@@ -256,11 +256,28 @@ function bookedCapacityForSlot(store, experience, startsAt, endsAt, ignoreHoldId
     rangesOverlap(new Date(hold.startsAt), new Date(hold.endsAt), startsAt, endsAt)
   ));
 
+  if (resource?.capacityMode === "bookings") {
+    return relevantBookings.length + relevantHolds.length;
+  }
+
   if (resource?.isExclusive && (relevantBookings.length || relevantHolds.length)) {
     return resource.capacity;
   }
 
   return [...relevantBookings, ...relevantHolds].reduce((sum, item) => sum + Number(item.guestCount || 0), 0);
+}
+
+function bookedCapacityForResource(store, resource, startsAt, endsAt) {
+  const activeStatuses = new Set(["pending_payment", "paid", "confirmed", "checked_in"]);
+  const relevantBookings = store.bookings.filter(booking => (
+    booking.resourceId === resource.id &&
+    activeStatuses.has(booking.status) &&
+    rangesOverlap(new Date(booking.startsAt), new Date(booking.endsAt), startsAt, endsAt)
+  ));
+
+  if (resource.capacityMode === "bookings") return relevantBookings.length;
+  if (resource.isExclusive && relevantBookings.length) return resource.capacity;
+  return relevantBookings.reduce((sum, booking) => sum + Number(booking.guestCount || 0), 0);
 }
 
 function getResource(store, resourceId) {
@@ -311,6 +328,9 @@ function buildSlots(store, experienceId, dateString) {
       const isBlackout = blackoutRanges.some(range => rangesOverlap(startsAt, endsAt, range.startsAt, range.endsAt));
       const booked = bookedCapacityForSlot(store, experience, startsAt, endsAt);
       const remaining = isBlackout ? 0 : Math.max(0, resource.capacity - booked);
+      const isBookable = resource.capacityMode === "bookings"
+        ? remaining > 0
+        : remaining >= experience.minGuests;
       slots.push({
         time,
         startsAt: startsAt.toISOString(),
@@ -318,7 +338,7 @@ function buildSlots(store, experienceId, dateString) {
         remaining,
         resourceId: resource.id,
         ruleId: rule.id,
-        isAvailable: !isBlackout && remaining >= experience.minGuests
+        isAvailable: !isBlackout && isBookable
       });
     }
   }
@@ -479,7 +499,9 @@ function validateBookingPayload(store, payload) {
   }
 
   const slot = buildSlots(store, experience.id, payload.date).find(item => item.time === payload.time);
-  if (!slot || !slot.isAvailable || slot.remaining < guestCount) {
+  const resource = getResource(store, experience.resourceId);
+  const hasEnoughCapacity = resource?.capacityMode === "bookings" ? slot?.remaining > 0 : slot?.remaining >= guestCount;
+  if (!slot || !slot.isAvailable || !hasEnoughCapacity) {
     return "That time is no longer available for the selected group size.";
   }
 
@@ -507,6 +529,44 @@ async function handleApi(req, res, url) {
     const experienceId = url.searchParams.get("experienceId");
     const date = url.searchParams.get("date");
     return sendJson(res, 200, { slots: buildSlots(store, experienceId, date) });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/employee/day") {
+    const date = url.searchParams.get("date") || new Date().toISOString().slice(0, 10);
+    const schedule = store.schedule || { availabilityRules: [], blackouts: [] };
+    const resources = store.resources
+      .filter(resource => resource.isEmployeeVisible !== false)
+      .sort((a, b) => Number(a.displayOrder || 0) - Number(b.displayOrder || 0));
+    const startMinutes = Math.min(...(schedule.availabilityRules || []).map(rule => minutesFromTime(rule.startTime)), 10 * 60);
+    const endMinutes = Math.max(...(schedule.availabilityRules || []).map(rule => minutesFromTime(rule.endTime)), 22 * 60);
+    const rows = [];
+
+    for (let minute = startMinutes; minute < endMinutes; minute += 30) {
+      const time = timeFromMinutes(minute);
+      const startsAt = toDateTime(date, time);
+      const endsAt = addMinutes(startsAt, 30);
+      rows.push({
+        time,
+        startsAt: startsAt.toISOString(),
+        cells: resources.map(resource => {
+          const booked = bookedCapacityForResource(store, resource, startsAt, endsAt);
+          const bookings = store.bookings.filter(booking => (
+            booking.resourceId === resource.id &&
+            !["cancelled", "failed", "no_show"].includes(booking.status) &&
+            rangesOverlap(new Date(booking.startsAt), new Date(booking.endsAt), startsAt, endsAt)
+          ));
+          return {
+            resourceId: resource.id,
+            booked,
+            available: Math.max(0, Number(resource.capacity || 0) - booked),
+            capacity: Number(resource.capacity || 0),
+            bookings
+          };
+        })
+      });
+    }
+
+    return sendJson(res, 200, { date, resources, rows });
   }
 
   if (req.method === "POST" && url.pathname === "/api/bookings") {
