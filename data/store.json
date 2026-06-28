@@ -159,7 +159,8 @@
         "spin",
         "pour-art"
       ],
-      "capacityUnit": "stations"
+      "capacityUnit": "stations",
+      "unitGuestCapacity": 2
     },
     {
       "id": "tumbler-stations",
@@ -211,7 +212,7 @@
       "slug": "splatter-room",
       "name": "Splatter",
       "summary": "Suit up and cover the room, canvas, and camera roll in color.",
-      "description": "A high-energy splatter-room session made for birthdays, families, photos, and guests who want the biggest visual moment.",
+      "description": "A high-energy splatter-room session made for birthdays, families, photos, and guests who want the biggest visual moment. Groups of 10 or more reserve the room privately when no other appointments are booked.",
       "durationMinutes": 45,
       "basePriceCents": 3500,
       "pricingType": "per_guest",
@@ -269,7 +270,9 @@
           "15:00",
           "17:00"
         ]
-      }
+      },
+      "privateThresholdGuests": 10,
+      "bookingNote": "Groups of 10 or more reserve the Splatter room privately when no other Splatter appointments are already booked for that time."
     },
     {
       "id": "spin",
@@ -282,14 +285,14 @@
       "pricingType": "per_guest",
       "depositCents": 2800,
       "minGuests": 1,
-      "maxGuests": 6,
+      "maxGuests": 8,
       "resourceId": "spin-stations",
       "bufferMinutes": 15,
       "isPublic": true,
       "displayOrder": 2,
       "imageUrl": "/assets/spin-art-pride-rainbow-canvas-web.jpg",
       "includedItems": [
-        "One spin art canvas per guest",
+        "One spin station per 1-2 participants",
         "Guided color setup",
         "Protective gear"
       ],
@@ -297,20 +300,37 @@
         {
           "id": "choose-in-studio",
           "name": "Choose in studio",
-          "description": "Pay the reservation fee now and choose/pay for your canvas in store.",
-          "priceCents": 0
+          "description": "Pay the reservation fee now and choose/pay for your canvas count in store.",
+          "priceCents": 0,
+          "pricingScope": "per_station"
         },
         {
-          "id": "canvas-12x12",
-          "name": "12x12 canvas",
-          "description": "Classic spin art canvas size.",
-          "priceCents": 2000
+          "id": "one-canvas-12x12",
+          "name": "1 x 12x12 canvas per station",
+          "description": "One classic spin art canvas for each reserved station.",
+          "priceCents": 2000,
+          "pricingScope": "per_station"
         },
         {
-          "id": "canvas-16x20",
-          "name": "16x20 canvas",
-          "description": "Larger canvas for a bigger finished piece.",
-          "priceCents": 3000
+          "id": "two-canvases-12x12",
+          "name": "2 x 12x12 canvases per station",
+          "description": "Two classic spin art canvases for each reserved station.",
+          "priceCents": 4000,
+          "pricingScope": "per_station"
+        },
+        {
+          "id": "one-canvas-16x20",
+          "name": "1 x 16x20 canvas per station",
+          "description": "One larger finished piece for each reserved station.",
+          "priceCents": 3000,
+          "pricingScope": "per_station"
+        },
+        {
+          "id": "two-canvases-16x20",
+          "name": "2 x 16x20 canvases per station",
+          "description": "Two larger finished pieces for each reserved station.",
+          "priceCents": 6000,
+          "pricingScope": "per_station"
         }
       ],
       "addOnIds": [
@@ -334,7 +354,10 @@
           "15:00",
           "17:00"
         ]
-      }
+      },
+      "minimumBillableGuestsPerResourceUnit": 2,
+      "privateThresholdGuests": 8,
+      "bookingNote": "Each Spin station seats up to 2 people. A station requires a minimum of two reservation fees, then you can choose 1 or 2 canvases for that station."
     },
     {
       "id": "pour-art",

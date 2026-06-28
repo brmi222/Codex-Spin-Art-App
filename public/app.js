@@ -104,6 +104,28 @@ function isPerGuest(experience) {
   return experience.pricingType === "per_guest";
 }
 
+function resourceForExperience(experience) {
+  return state.config.resources.find(resource => resource.id === experience.resourceId);
+}
+
+function capacityUnitsForExperience(experience, guestCount) {
+  const resource = resourceForExperience(experience);
+  const unitGuestCapacity = Number(resource?.unitGuestCapacity || 0);
+  if (unitGuestCapacity > 0) return Math.max(1, Math.ceil(Number(guestCount || 0) / unitGuestCapacity));
+  return 1;
+}
+
+function billableGuestCount(experience, guestCount) {
+  const resource = resourceForExperience(experience);
+  if (experience.minimumBillableGuestsPerResourceUnit && resource?.unitGuestCapacity) {
+    return Math.max(
+      Number(guestCount || 0),
+      capacityUnitsForExperience(experience, guestCount) * Number(experience.minimumBillableGuestsPerResourceUnit)
+    );
+  }
+  return Number(guestCount || 0);
+}
+
 function usesGroupWaiver(experience) {
   return ["group-events", "private-events"].includes(experience.id);
 }
@@ -330,10 +352,13 @@ function calculateTotal() {
   const projectId = selectedProject();
   const project = (experience.projectOptions || []).find(item => item.id === projectId);
   const projectTotal = project ? Number(project.priceCents || 0) : 0;
+  const capacityUnits = capacityUnitsForExperience(experience, guests);
+  const billableGuests = billableGuestCount(experience, guests);
+  const projectMultiplier = project?.pricingScope === "per_station" ? capacityUnits : guests;
   const base = isPerGuest(experience)
-    ? experience.basePriceCents * guests
+    ? experience.basePriceCents * billableGuests
     : experience.basePriceCents;
-  return base + (projectTotal + addOnTotal) * guests;
+  return base + (projectTotal * projectMultiplier) + (addOnTotal * guests);
 }
 
 function calculateTax(subtotalCents) {
@@ -364,8 +389,9 @@ function reservationFeeTotal() {
   const guestInput = el("guestInput");
   const guests = Number(guestInput ? guestInput.value : 0);
   if (!experience) return 0;
+  const billableGuests = billableGuestCount(experience, guests);
   return isPerGuest(experience)
-    ? experience.depositCents * guests
+    ? experience.depositCents * billableGuests
     : experience.depositCents;
 }
 
@@ -430,6 +456,11 @@ function renderBookingIntro() {
       ? `<span>Occasion</span><strong>${occasion.label}</strong>`
       : "";
   }
+  const bookingNote = el("bookingIntroNote");
+  if (bookingNote) {
+    bookingNote.hidden = !experience.bookingNote;
+    bookingNote.textContent = experience.bookingNote || "";
+  }
 
   const image = el("bookingIntroImage");
   if (image) image.src = experience.imageUrl;
@@ -458,7 +489,7 @@ function renderProjectOptions() {
       <input type="radio" name="projectOption" data-project value="${project.id}" ${index === 0 ? "checked" : ""}>
       <span>
         <strong>${project.name}</strong>
-        <small>${project.description}${project.priceCents ? ` | +${dollars(project.priceCents)}` : ""}</small>
+        <small>${project.description}${project.priceCents ? ` | +${dollars(project.priceCents)}${project.pricingScope === "per_station" ? " per station" : ""}` : ""}</small>
       </span>
     </label>
   `).join("") : "<p>Project options will be confirmed with the studio.</p>";

@@ -257,14 +257,19 @@ function bookedCapacityForSlot(store, experience, startsAt, endsAt, ignoreHoldId
   ));
 
   if (resource?.capacityMode === "bookings") {
-    return relevantBookings.length + relevantHolds.length;
+    return [...relevantBookings, ...relevantHolds].reduce((sum, item) => (
+      sum + capacityUnitsForBooking(resource, item.guestCount, item.experienceId)
+    ), 0);
   }
 
   if (resource?.isExclusive && (relevantBookings.length || relevantHolds.length)) {
     return resource.capacity;
   }
 
-  return [...relevantBookings, ...relevantHolds].reduce((sum, item) => sum + Number(item.guestCount || 0), 0);
+  return [...relevantBookings, ...relevantHolds].reduce((sum, item) => {
+    const bookedExperience = getExperience(store, item.experienceId);
+    return sum + capacityConsumedByBooking(resource, bookedExperience, item.guestCount);
+  }, 0);
 }
 
 function bookedCapacityForResource(store, resource, startsAt, endsAt) {
@@ -275,9 +280,48 @@ function bookedCapacityForResource(store, resource, startsAt, endsAt) {
     rangesOverlap(new Date(booking.startsAt), new Date(booking.endsAt), startsAt, endsAt)
   ));
 
-  if (resource.capacityMode === "bookings") return relevantBookings.length;
+  if (resource.capacityMode === "bookings") {
+    return relevantBookings.reduce((sum, booking) => (
+      sum + capacityUnitsForBooking(resource, booking.guestCount, booking.experienceId)
+    ), 0);
+  }
   if (resource.isExclusive && relevantBookings.length) return resource.capacity;
-  return relevantBookings.reduce((sum, booking) => sum + Number(booking.guestCount || 0), 0);
+  return relevantBookings.reduce((sum, booking) => {
+    const experience = getExperience(store, booking.experienceId);
+    return sum + capacityConsumedByBooking(resource, experience, booking.guestCount);
+  }, 0);
+}
+
+function capacityUnitsForBooking(resource, guestCount) {
+  const unitGuestCapacity = Number(resource?.unitGuestCapacity || 0);
+  if (unitGuestCapacity > 0) {
+    return Math.max(1, Math.ceil(Number(guestCount || 0) / unitGuestCapacity));
+  }
+  return 1;
+}
+
+function capacityConsumedByBooking(resource, experience, guestCount) {
+  const guests = Number(guestCount || 0);
+  if (experience?.privateThresholdGuests && guests >= Number(experience.privateThresholdGuests)) {
+    return Number(resource.capacity || guests);
+  }
+  if (resource?.capacityMode === "bookings") return capacityUnitsForBooking(resource, guests, experience?.id);
+  return guests;
+}
+
+function requiredCapacityForBooking(resource, experience, guestCount) {
+  return capacityConsumedByBooking(resource, experience, guestCount);
+}
+
+function billableGuestCount(resource, experience, guestCount) {
+  const guests = Number(guestCount || 0);
+  if (experience?.minimumBillableGuestsPerResourceUnit && resource?.unitGuestCapacity) {
+    return Math.max(
+      guests,
+      capacityUnitsForBooking(resource, guests, experience.id) * Number(experience.minimumBillableGuestsPerResourceUnit)
+    );
+  }
+  return guests;
 }
 
 function getResource(store, resourceId) {
@@ -328,9 +372,7 @@ function buildSlots(store, experienceId, dateString) {
       const isBlackout = blackoutRanges.some(range => rangesOverlap(startsAt, endsAt, range.startsAt, range.endsAt));
       const booked = bookedCapacityForSlot(store, experience, startsAt, endsAt);
       const remaining = isBlackout ? 0 : Math.max(0, resource.capacity - booked);
-      const isBookable = resource.capacityMode === "bookings"
-        ? remaining > 0
-        : remaining >= experience.minGuests;
+      const isBookable = remaining >= requiredCapacityForBooking(resource, experience, experience.minGuests);
       slots.push({
         time,
         startsAt: startsAt.toISOString(),
@@ -355,6 +397,9 @@ function money(cents) {
 }
 
 function calculateTotal(store, experience, guestCount, selectedAddOnIds = [], projectId = "") {
+  const resource = getResource(store, experience.resourceId);
+  const billableGuests = billableGuestCount(resource, experience, guestCount);
+  const capacityUnits = capacityUnitsForBooking(resource, guestCount, experience.id);
   const addOnTotal = selectedAddOnIds.reduce((sum, addOnId) => {
     const addOn = store.addOns.find(item => item.id === addOnId);
     return sum + (addOn ? money(addOn.priceCents) : 0);
@@ -362,11 +407,12 @@ function calculateTotal(store, experience, guestCount, selectedAddOnIds = [], pr
 
   const project = (experience.projectOptions || []).find(item => item.id === projectId);
   const projectTotal = project ? money(project.priceCents) : 0;
+  const projectMultiplier = project?.pricingScope === "per_station" ? capacityUnits : guestCount;
   const base = experience.pricingType === "per_guest"
-    ? money(experience.basePriceCents) * guestCount
+    ? money(experience.basePriceCents) * billableGuests
     : money(experience.basePriceCents);
 
-  return base + (projectTotal + addOnTotal) * guestCount;
+  return base + (projectTotal * projectMultiplier) + (addOnTotal * guestCount);
 }
 
 function calculateTax(store, subtotalCents) {
@@ -378,8 +424,10 @@ function pricingBreakdown(store, experience, guestCount, selectedAddOnIds = [], 
   const subtotalCents = calculateTotal(store, experience, guestCount, selectedAddOnIds, projectId);
   const taxCents = calculateTax(store, subtotalCents);
   const totalCents = subtotalCents + taxCents;
+  const resource = getResource(store, experience.resourceId);
+  const billableGuests = billableGuestCount(resource, experience, guestCount);
   const reservationFeeSubtotalCents = experience.pricingType === "per_guest"
-    ? money(experience.depositCents) * guestCount
+    ? money(experience.depositCents) * billableGuests
     : money(experience.depositCents);
   const amountDueNowSubtotalCents = paymentMode === "pay_full"
     ? subtotalCents
@@ -492,7 +540,8 @@ function validateBookingPayload(store, payload) {
 
   const slot = buildSlots(store, experience.id, payload.date).find(item => item.time === payload.time);
   const resource = getResource(store, experience.resourceId);
-  const hasEnoughCapacity = resource?.capacityMode === "bookings" ? slot?.remaining > 0 : slot?.remaining >= guestCount;
+  const requiredCapacity = requiredCapacityForBooking(resource, experience, guestCount);
+  const hasEnoughCapacity = slot?.remaining >= requiredCapacity;
   if (!slot || !slot.isAvailable || !hasEnoughCapacity) {
     return "That time is no longer available for the selected group size.";
   }
@@ -516,7 +565,8 @@ function validateEmployeeBookingPayload(store, payload) {
 
   const slot = buildSlots(store, experience.id, payload.date).find(item => item.time === payload.time);
   const resource = getResource(store, experience.resourceId);
-  const hasEnoughCapacity = resource?.capacityMode === "bookings" ? slot?.remaining > 0 : slot?.remaining >= guestCount;
+  const requiredCapacity = requiredCapacityForBooking(resource, experience, guestCount);
+  const hasEnoughCapacity = slot?.remaining >= requiredCapacity;
   if (!slot || !slot.isAvailable || !hasEnoughCapacity) {
     return "That time is no longer available for the selected group size.";
   }

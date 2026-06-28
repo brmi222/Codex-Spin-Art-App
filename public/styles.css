@@ -751,6 +751,20 @@ body[data-page="landing"] .section-heading .text-link {
   line-height: 1.6;
 }
 
+.page-intro .booking-note {
+  max-width: 680px;
+  margin-top: 0.75rem;
+  padding-left: 0.85rem;
+  border-left: 4px solid var(--yellow);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 0.98rem;
+  font-weight: 750;
+}
+
+.booking-note[hidden] {
+  display: none;
+}
+
 .occasion-banner {
   display: inline-flex;
   align-items: center;
