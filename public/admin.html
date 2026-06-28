@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin | Spin Art Raleigh</title>
+    <link rel="stylesheet" href="/styles.css?v=18">
+  </head>
+  <body data-page="admin">
+    <header class="topbar admin-topbar">
+      <a class="brand" href="/" aria-label="Spin Art Raleigh home">
+        <span class="brand-mark"><img id="navLogo" src="/assets/spin-art-logo.png" alt=""></span>
+        <span>
+          <strong>Spin Art Raleigh</strong>
+          <small>Admin</small>
+        </span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="/">Home</a>
+        <a href="/book.html">Book</a>
+        <button type="button" id="refreshAdmin">Refresh</button>
+      </nav>
+    </header>
+
+    <main class="admin-page">
+      <section class="admin-hero">
+        <div>
+          <p class="eyebrow">Operations</p>
+          <h1>Booking console</h1>
+        </div>
+        <div class="admin-stats" id="adminStats"></div>
+      </section>
+
+      <section class="admin-grid">
+        <div class="admin-card">
+          <h2>Upcoming bookings</h2>
+          <div class="booking-list" id="adminBookings"></div>
+        </div>
+        <div class="admin-card">
+          <h2>Editable site content</h2>
+          <label>
+            Hero headline
+            <input type="text" id="editHeadline">
+          </label>
+          <label>
+            Hero copy
+            <textarea id="editCopy" rows="4"></textarea>
+          </label>
+          <label>
+            Hero image URL
+            <input type="url" id="editImage">
+          </label>
+          <label>
+            Hero video URL
+            <input type="url" id="editVideo" placeholder="/assets/studio-loop.mp4">
+          </label>
+          <label>
+            Logo URL
+            <input type="url" id="editLogo">
+          </label>
+          <button type="button" id="saveContent">Save content</button>
+          <p class="status" id="contentStatus"></p>
+        </div>
+      </section>
+
+      <section class="admin-grid admin-grid-wide">
+        <div class="admin-card">
+          <h2>Scheduling</h2>
+          <p class="admin-help">Configure resources, weekly availability, minimum notice, slot spacing, and blackout times.</p>
+          <div id="resourceList" class="schedule-list"></div>
+          <form class="schedule-form" id="availabilityRuleForm">
+            <h3>Add weekly availability</h3>
+            <div class="field-grid">
+              <label>
+                Name
+                <input type="text" id="ruleName" placeholder="Saturday spin stations" required>
+              </label>
+              <label>
+                Resource
+                <select id="ruleResource" required></select>
+              </label>
+              <label>
+                Experience
+                <select id="ruleExperience" required></select>
+              </label>
+              <label>
+                Start
+                <input type="time" id="ruleStart" value="10:00" required>
+              </label>
+              <label>
+                End
+                <input type="time" id="ruleEnd" value="22:00" required>
+              </label>
+              <label>
+                Slot interval minutes
+                <input type="number" id="ruleInterval" min="15" step="15" value="30" required>
+              </label>
+              <label>
+                Minimum notice minutes
+                <input type="number" id="ruleNotice" min="0" step="30" value="120" required>
+              </label>
+            </div>
+            <fieldset>
+              <legend>Days</legend>
+              <div class="weekday-list" id="ruleDays"></div>
+            </fieldset>
+            <button type="submit">Add availability rule</button>
+          </form>
+          <div class="schedule-list" id="availabilityRuleList"></div>
+        </div>
+        <div class="admin-card">
+          <h2>Blackouts</h2>
+          <p class="admin-help">Block a resource for holidays, maintenance, private holds, or staffing gaps.</p>
+          <form class="schedule-form" id="blackoutForm">
+            <label>
+              Resource
+              <select id="blackoutResource" required></select>
+            </label>
+            <label>
+              Date
+              <input type="date" id="blackoutDate" required>
+            </label>
+            <div class="field-grid">
+              <label>
+                Start
+                <input type="time" id="blackoutStart" value="10:00" required>
+              </label>
+              <label>
+                End
+                <input type="time" id="blackoutEnd" value="22:00" required>
+              </label>
+            </div>
+            <label>
+              Reason
+              <input type="text" id="blackoutReason" placeholder="Closed for staff event">
+            </label>
+            <button type="submit">Add blackout</button>
+          </form>
+          <div class="schedule-list" id="blackoutList"></div>
+          <p class="status" id="scheduleStatus"></p>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,813 @@
+{
+  "business": {
+    "name": "Spin Art Raleigh",
+    "tagline": "Book bright, hands-on art sessions for parties, teams, and drop-ins.",
+    "phone": "(919) 555-0148",
+    "email": "hello@spinart-raleigh.example",
+    "address": "Raleigh, NC",
+    "timezone": "America/New_York",
+    "brand": {
+      "primary": "#f04f7f",
+      "accent": "#16a3a8",
+      "ink": "#1d2433"
+    }
+  },
+  "site": {
+    "hero": {
+      "headline": "Test",
+      "copy": "A hands-on paint studio where you suit up, make a colorful mess, and create custom art with friends, family, or coworkers. No art skills needed.",
+      "occasions": [
+        "Date nights",
+        "Rainy days",
+        "Birthdays",
+        "Girls' nights",
+        "Corporate events",
+        "Team building",
+        "Family fun"
+      ],
+      "imageUrl": "/assets/spin-art-pride-three-canvases-web.jpg",
+      "videoUrl": "/assets/spin-art-studio-clip.mov",
+      "logoUrl": "/assets/spin-art-logo.png"
+    },
+    "media": [
+      {
+        "id": "spin-pride-three-canvases",
+        "type": "image",
+        "title": "Fresh spin art canvases",
+        "url": "/assets/spin-art-pride-three-canvases-web.jpg",
+        "source": "local-upload"
+      },
+      {
+        "id": "rainbow-canvas",
+        "type": "image",
+        "title": "Rainbow canvas reveal",
+        "url": "/assets/spin-art-pride-rainbow-canvas-web.jpg",
+        "source": "local-upload"
+      },
+      {
+        "id": "paint-bottles",
+        "type": "image",
+        "title": "Choose your colors",
+        "url": "/assets/spin-art-pride-paint-bottles-web.jpg",
+        "source": "local-upload"
+      },
+      {
+        "id": "yellow-purple-canvas",
+        "type": "image",
+        "title": "Yellow and purple canvas",
+        "url": "/assets/spin-art-pride-yellow-purple-web.jpg",
+        "source": "local-upload"
+      },
+      {
+        "id": "sunset-canvas",
+        "type": "image",
+        "title": "Sunset color pour",
+        "url": "/assets/spin-art-pride-sunset-canvas-web.jpg",
+        "source": "local-upload"
+      },
+      {
+        "id": "purple-ring-canvas",
+        "type": "image",
+        "title": "Purple ring spin art",
+        "url": "/assets/spin-art-pride-purple-ring-web.jpg",
+        "source": "local-upload"
+      },
+      {
+        "id": "studio-video",
+        "type": "video",
+        "title": "Studio in motion",
+        "url": "/assets/spin-art-studio-clip.mov",
+        "source": "local-upload"
+      },
+      {
+        "id": "tumbler-process",
+        "type": "image",
+        "title": "Tumbler color process",
+        "url": "/assets/spin-art-gallery-extra-01-web.jpg",
+        "source": "local-upload"
+      },
+      {
+        "id": "neon-studio-sign",
+        "type": "image",
+        "title": "Spin Art Raleigh neon",
+        "url": "/assets/spin-art-gallery-extra-02-web.jpg",
+        "source": "local-upload"
+      },
+      {
+        "id": "finished-art-wall",
+        "type": "image",
+        "title": "Finished art wall",
+        "url": "/assets/spin-art-gallery-extra-03-web.jpg",
+        "source": "local-upload"
+      },
+      {
+        "id": "finished-tumbler",
+        "type": "image",
+        "title": "Finished custom tumbler",
+        "url": "/assets/spin-art-gallery-extra-04-web.jpg",
+        "source": "local-upload"
+      },
+      {
+        "id": "group-event-studio-circle",
+        "type": "image",
+        "title": "Group event in the studio",
+        "url": "/assets/spin-art-group-events-01-web.jpg",
+        "source": "local-upload"
+      },
+      {
+        "id": "group-event-party-table",
+        "type": "image",
+        "title": "Party table group event",
+        "url": "/assets/spin-art-group-events-02-web.jpg",
+        "source": "local-upload"
+      }
+    ],
+    "sections": [
+      {
+        "id": "private-events",
+        "title": "Book the room, the color, and the celebration",
+        "body": "Birthday parties, team outings, school groups, and private events can move from discovery to checkout without staff chasing details."
+      },
+      {
+        "id": "ready-for-staff",
+        "title": "A booking flow that still feels like the experience",
+        "body": "Guests see the studio, choose the occasion, add upgrades, and arrive with the important details already captured."
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Can guests choose add-ons?",
+        "answer": "Yes. Add-ons are configured per experience, so upsells can change without editing code."
+      },
+      {
+        "question": "Can we block private events?",
+        "answer": "Yes. Private bookings reserve capacity for the selected resource and prevent double-booking."
+      }
+    ]
+  },
+  "resources": [
+    {
+      "id": "spin-stations",
+      "name": "Spin Stations",
+      "capacity": 8,
+      "capacityMode": "guests",
+      "isExclusive": false,
+      "experienceIds": [
+        "spin"
+      ]
+    },
+    {
+      "id": "splatter-room",
+      "name": "Splatter Room",
+      "capacity": 8,
+      "capacityMode": "guests",
+      "isExclusive": true,
+      "experienceIds": [
+        "splatter"
+      ]
+    },
+    {
+      "id": "pour-stations",
+      "name": "Pour Stations",
+      "capacity": 10,
+      "capacityMode": "guests",
+      "isExclusive": false,
+      "experienceIds": [
+        "pour-art"
+      ]
+    },
+    {
+      "id": "tumbler-stations",
+      "name": "Tumbler Stations",
+      "capacity": 8,
+      "capacityMode": "guests",
+      "isExclusive": false,
+      "experienceIds": [
+        "tumblers"
+      ]
+    },
+    {
+      "id": "party-zone",
+      "name": "Party Zone",
+      "capacity": 24,
+      "capacityMode": "guests",
+      "isExclusive": true,
+      "experienceIds": [
+        "group-events",
+        "private-events"
+      ]
+    }
+  ],
+  "experiences": [
+    {
+      "id": "splatter",
+      "slug": "splatter-room",
+      "name": "Splatter",
+      "summary": "Suit up and cover the room, canvas, and camera roll in color.",
+      "description": "A high-energy splatter-room session made for birthdays, families, photos, and guests who want the biggest visual moment.",
+      "durationMinutes": 45,
+      "basePriceCents": 3500,
+      "pricingType": "per_guest",
+      "depositCents": 3500,
+      "minGuests": 1,
+      "maxGuests": 8,
+      "resourceId": "splatter-room",
+      "bufferMinutes": 15,
+      "isPublic": true,
+      "displayOrder": 1,
+      "imageUrl": "/assets/drive-2632.jpg",
+      "includedItems": [
+        "Splatter-room access",
+        "Protective gear",
+        "One canvas per guest"
+      ],
+      "projectOptions": [
+        {
+          "id": "choose-in-studio",
+          "name": "Choose in studio",
+          "description": "Pay the reservation fee now and choose/pay for your canvas in store.",
+          "priceCents": 0
+        },
+        {
+          "id": "canvas-12x12",
+          "name": "12x12 canvas",
+          "description": "Classic splatter canvas size.",
+          "priceCents": 2000
+        },
+        {
+          "id": "canvas-16x20",
+          "name": "16x20 canvas",
+          "description": "Larger canvas for a bigger finished piece.",
+          "priceCents": 3000
+        }
+      ],
+      "addOnIds": [
+        "glitter-finish",
+        "extra-paints",
+        "booking-insurance"
+      ],
+      "availability": {
+        "daysOfWeek": [
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "startTimes": [
+          "11:00",
+          "13:00",
+          "15:00",
+          "17:00"
+        ]
+      }
+    },
+    {
+      "id": "spin",
+      "slug": "spin-art",
+      "name": "Spin",
+      "summary": "Pick your colors, pour the paint, and let the spin table make the magic.",
+      "description": "The classic Spin Art Raleigh experience for families, dates, and drop-ins who want a fast, colorful, hands-on session.",
+      "durationMinutes": 60,
+      "basePriceCents": 2800,
+      "pricingType": "per_guest",
+      "depositCents": 2800,
+      "minGuests": 1,
+      "maxGuests": 8,
+      "resourceId": "spin-stations",
+      "bufferMinutes": 15,
+      "isPublic": true,
+      "displayOrder": 2,
+      "imageUrl": "/assets/spin-art-pride-rainbow-canvas-web.jpg",
+      "includedItems": [
+        "One spin art canvas per guest",
+        "Guided color setup",
+        "Protective gear"
+      ],
+      "projectOptions": [
+        {
+          "id": "choose-in-studio",
+          "name": "Choose in studio",
+          "description": "Pay the reservation fee now and choose/pay for your canvas in store.",
+          "priceCents": 0
+        },
+        {
+          "id": "canvas-12x12",
+          "name": "12x12 canvas",
+          "description": "Classic spin art canvas size.",
+          "priceCents": 2000
+        },
+        {
+          "id": "canvas-16x20",
+          "name": "16x20 canvas",
+          "description": "Larger canvas for a bigger finished piece.",
+          "priceCents": 3000
+        }
+      ],
+      "addOnIds": [
+        "glitter-finish",
+        "extra-paints",
+        "booking-insurance"
+      ],
+      "availability": {
+        "daysOfWeek": [
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "startTimes": [
+          "11:00",
+          "13:00",
+          "15:00",
+          "17:00"
+        ]
+      }
+    },
+    {
+      "id": "pour-art",
+      "slug": "pour-art",
+      "name": "Pour Art",
+      "summary": "Layer bold colors and create a fluid-paint piece with a guided setup.",
+      "description": "A calmer, satisfying paint-pour session for guests who want rich color movement and a more gallery-style finished piece.",
+      "durationMinutes": 60,
+      "basePriceCents": 3200,
+      "pricingType": "per_guest",
+      "depositCents": 3200,
+      "minGuests": 1,
+      "maxGuests": 10,
+      "resourceId": "pour-stations",
+      "bufferMinutes": 15,
+      "isPublic": true,
+      "displayOrder": 3,
+      "imageUrl": "/assets/spin-art-extra-packaging-05-web.jpg",
+      "includedItems": [
+        "Pour art surface",
+        "Paint color bar",
+        "Guided pour setup"
+      ],
+      "projectOptions": [
+        {
+          "id": "choose-in-studio",
+          "name": "Choose in studio",
+          "description": "Pay the reservation fee now and choose/pay for your pour piece in store.",
+          "priceCents": 0
+        },
+        {
+          "id": "bear-12",
+          "name": "12in bear",
+          "description": "A pour bear ready for custom color.",
+          "priceCents": 3500
+        },
+        {
+          "id": "unicorn",
+          "name": "Unicorn",
+          "description": "A white unicorn figure ready for pour art.",
+          "priceCents": 4000
+        },
+        {
+          "id": "shoe",
+          "name": "Shoe",
+          "description": "A custom shoe pour project.",
+          "priceCents": 4500
+        },
+        {
+          "id": "basketball",
+          "name": "Basketball",
+          "description": "A bold pour project for sports fans.",
+          "priceCents": 4500
+        }
+      ],
+      "addOnIds": [
+        "glitter-finish",
+        "extra-paints",
+        "booking-insurance"
+      ],
+      "availability": {
+        "daysOfWeek": [
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "startTimes": [
+          "11:30",
+          "13:30",
+          "15:30",
+          "17:30"
+        ]
+      }
+    },
+    {
+      "id": "tumblers",
+      "slug": "custom-tumblers",
+      "name": "Tumblers",
+      "summary": "Build a custom tumbler with color, finish, and gift-ready personality.",
+      "description": "A premium craft session for guests who want something usable, giftable, and more elevated than a standard canvas.",
+      "durationMinutes": 75,
+      "basePriceCents": 4500,
+      "pricingType": "per_guest",
+      "depositCents": 4500,
+      "minGuests": 1,
+      "maxGuests": 8,
+      "resourceId": "tumbler-stations",
+      "bufferMinutes": 20,
+      "isPublic": true,
+      "displayOrder": 4,
+      "imageUrl": "/assets/spin-art-gallery-extra-04-web.jpg",
+      "includedItems": [
+        "One tumbler per guest",
+        "Color and finish setup",
+        "Staff guidance"
+      ],
+      "projectOptions": [
+        {
+          "id": "tumbler-white",
+          "name": "20oz white tumbler",
+          "description": "Includes three colors.",
+          "priceCents": 3500
+        },
+        {
+          "id": "tumbler-black",
+          "name": "20oz black tumbler",
+          "description": "Includes three colors.",
+          "priceCents": 3500
+        }
+      ],
+      "addOnIds": [
+        "tumbler-glitter",
+        "more-colors",
+        "booking-insurance"
+      ],
+      "availability": {
+        "daysOfWeek": [
+          3,
+          4,
+          5,
+          6
+        ],
+        "startTimes": [
+          "12:00",
+          "14:30",
+          "17:00"
+        ]
+      }
+    },
+    {
+      "id": "group-events",
+      "slug": "group-events",
+      "name": "Group Events",
+      "summary": "Creative group sessions for teams, schools, clubs, and organizations.",
+      "description": "A hosted group experience with flexible participant counts, shared setup, and add-ons for larger crews.",
+      "durationMinutes": 90,
+      "basePriceCents": 45000,
+      "pricingType": "flat",
+      "depositCents": 15000,
+      "minGuests": 10,
+      "maxGuests": 24,
+      "resourceId": "party-zone",
+      "bufferMinutes": 30,
+      "isPublic": true,
+      "displayOrder": 5,
+      "imageUrl": "/assets/spin-art-group-events-01-web.jpg",
+      "includedItems": [
+        "Reserved group block",
+        "Team canvas package",
+        "Facilitated activity"
+      ],
+      "projectOptions": [
+        {
+          "id": "group-planning",
+          "name": "Decide with the studio",
+          "description": "We will coordinate the best project mix for your group.",
+          "priceCents": 0
+        }
+      ],
+      "addOnIds": [
+        "booking-insurance",
+        "snack-table"
+      ],
+      "availability": {
+        "daysOfWeek": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "startTimes": [
+          "11:00",
+          "14:00",
+          "17:30"
+        ]
+      }
+    },
+    {
+      "id": "private-events",
+      "slug": "private-events",
+      "name": "Private Events",
+      "summary": "Reserve the party zone for birthdays, celebrations, and private bookings.",
+      "description": "A private hosted experience with time for art, photos, celebration, setup, and cleanup.",
+      "durationMinutes": 120,
+      "basePriceCents": 32000,
+      "pricingType": "flat",
+      "depositCents": 10000,
+      "minGuests": 8,
+      "maxGuests": 24,
+      "resourceId": "party-zone",
+      "bufferMinutes": 30,
+      "isPublic": true,
+      "displayOrder": 6,
+      "imageUrl": "/assets/drive-2632.jpg",
+      "includedItems": [
+        "Private party space",
+        "Dedicated host",
+        "Setup and cleanup"
+      ],
+      "projectOptions": [
+        {
+          "id": "private-planning",
+          "name": "Decide with the studio",
+          "description": "We will coordinate the best project mix for your party.",
+          "priceCents": 0
+        }
+      ],
+      "addOnIds": [
+        "booking-insurance",
+        "party-favor-pack",
+        "snack-table"
+      ],
+      "availability": {
+        "daysOfWeek": [
+          5,
+          6,
+          0
+        ],
+        "startTimes": [
+          "10:00",
+          "13:00",
+          "16:00"
+        ]
+      }
+    }
+  ],
+  "addOns": [
+    {
+      "id": "glitter-finish",
+      "name": "Glitter",
+      "description": "Add sparkle to the finished piece.",
+      "priceCents": 500
+    },
+    {
+      "id": "extra-paints",
+      "name": "Additional Paints",
+      "description": "Add more colors to your setup.",
+      "priceCents": 500
+    },
+    {
+      "id": "booking-insurance",
+      "name": "Booking Insurance",
+      "description": "Change date/time up to two times before your reservation. Valid for 6 months; reservation fee is forfeited after that.",
+      "priceCents": 1000
+    },
+    {
+      "id": "tumbler-glitter",
+      "name": "Glitter",
+      "description": "Add glitter to your tumbler finish.",
+      "priceCents": 500
+    },
+    {
+      "id": "more-colors",
+      "name": "More Colors",
+      "description": "Tumblers include three colors. Add more to the design.",
+      "priceCents": 500
+    },
+    {
+      "id": "party-favor-pack",
+      "name": "Party Favor Pack",
+      "description": "Take-home favor bag for each guest.",
+      "priceCents": 650
+    },
+    {
+      "id": "snack-table",
+      "name": "Snack Table Setup",
+      "description": "Reserved snack table with setup support.",
+      "priceCents": 4500
+    }
+  ],
+  "policies": {
+    "cancellation": "Reservation fees and experience purchases are non-refundable. Booking Insurance allows up to two date/time changes before the reservation time and remains valid for 6 months; after 6 months the reservation fee is forfeited.",
+    "waiver": "All participants need a signed waiver. Minors must be signed for by a parent or guardian."
+  },
+  "bookings": [
+    {
+      "id": "6dd73233-ded7-4a1c-9464-2ae69833c852",
+      "status": "checked_in",
+      "source": "public",
+      "paymentMode": "reservation_fee",
+      "experienceId": "splatter",
+      "experienceName": "Splatter",
+      "resourceId": "splatter-room",
+      "startsAt": "2026-06-29T14:00:00.000Z",
+      "endsAt": "2026-06-29T15:00:00.000Z",
+      "guestCount": 2,
+      "addOnIds": [],
+      "projectId": "choose-in-studio",
+      "projectName": "Choose in studio",
+      "occasion": "",
+      "occasionId": "",
+      "totalCents": 7000,
+      "reservationFeeCents": 7000,
+      "depositCents": 7000,
+      "balanceCents": 0,
+      "waiverStatus": "signed",
+      "waiver": null,
+      "waivers": [
+        {
+          "type": "individual",
+          "participantName": "Brian",
+          "participantDateOfBirth": "1991-03-04",
+          "participantType": "adult",
+          "address": {
+            "street": "105 Lockheed Cir",
+            "city": "Cary",
+            "state": "NC",
+            "zip": "27513"
+          },
+          "guardianName": "",
+          "guardianRelationship": "",
+          "riskAccepted": true,
+          "photoReleaseAccepted": false,
+          "signature": "Brian Miller",
+          "acceptedAt": "2026-06-28T02:58:40.472Z"
+        },
+        {
+          "type": "individual",
+          "participantName": "Courtny",
+          "participantDateOfBirth": "1993-06-20",
+          "participantType": "adult",
+          "address": {
+            "street": "105 Lockheed Circle",
+            "city": "Cary",
+            "state": "NC",
+            "zip": "27513"
+          },
+          "guardianName": "",
+          "guardianRelationship": "",
+          "riskAccepted": true,
+          "photoReleaseAccepted": true,
+          "signature": "COurtney miller",
+          "acceptedAt": "2026-06-28T02:58:40.472Z"
+        }
+      ],
+      "customer": {
+        "name": "Brian",
+        "email": "brianrmiller12@gmail.com",
+        "phone": "5136466257"
+      },
+      "notes": "",
+      "createdAt": "2026-06-28T02:58:40.473Z",
+      "updatedAt": "2026-06-28T03:00:10.538Z"
+    }
+  ],
+  "holds": [],
+  "schedule": {
+    "availabilityRules": [
+      {
+        "id": "rule-spin-open-studio",
+        "name": "Spin open studio",
+        "resourceId": "spin-stations",
+        "experienceIds": [
+          "spin"
+        ],
+        "daysOfWeek": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "startTime": "10:00",
+        "endTime": "22:00",
+        "slotIntervalMinutes": 30,
+        "minNoticeMinutes": 120,
+        "isActive": true
+      },
+      {
+        "id": "rule-splatter-open-studio",
+        "name": "Splatter room",
+        "resourceId": "splatter-room",
+        "experienceIds": [
+          "splatter"
+        ],
+        "daysOfWeek": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "startTime": "10:00",
+        "endTime": "22:00",
+        "slotIntervalMinutes": 60,
+        "minNoticeMinutes": 120,
+        "isActive": true
+      },
+      {
+        "id": "rule-pour-open-studio",
+        "name": "Pour art open studio",
+        "resourceId": "pour-stations",
+        "experienceIds": [
+          "pour-art"
+        ],
+        "daysOfWeek": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "startTime": "10:00",
+        "endTime": "22:00",
+        "slotIntervalMinutes": 30,
+        "minNoticeMinutes": 120,
+        "isActive": true
+      },
+      {
+        "id": "rule-tumblers-open-studio",
+        "name": "Tumblers open studio",
+        "resourceId": "tumbler-stations",
+        "experienceIds": [
+          "tumblers"
+        ],
+        "daysOfWeek": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "startTime": "10:00",
+        "endTime": "22:00",
+        "slotIntervalMinutes": 30,
+        "minNoticeMinutes": 120,
+        "isActive": true
+      },
+      {
+        "id": "rule-groups-weekdays",
+        "name": "Group events weekdays",
+        "resourceId": "party-zone",
+        "experienceIds": [
+          "group-events"
+        ],
+        "daysOfWeek": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "startTime": "10:00",
+        "endTime": "18:00",
+        "slotIntervalMinutes": 60,
+        "minNoticeMinutes": 1440,
+        "isActive": true
+      },
+      {
+        "id": "rule-private-weekends",
+        "name": "Private events weekends",
+        "resourceId": "party-zone",
+        "experienceIds": [
+          "private-events"
+        ],
+        "daysOfWeek": [
+          0,
+          5,
+          6
+        ],
+        "startTime": "10:00",
+        "endTime": "20:00",
+        "slotIntervalMinutes": 60,
+        "minNoticeMinutes": 1440,
+        "isActive": true
+      }
+    ],
+    "blackouts": []
+  },
+  "settings": {
+    "currency": "USD",
+    "taxRateBps": 725,
+    "taxLabel": "Wake County sales tax",
+    "paymentProvider": "mock"
+  },
+  "payments": []
+}

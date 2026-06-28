@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Spin Art Raleigh</title>
+    <link rel="stylesheet" href="/styles.css?v=18">
+  </head>
+  <body data-page="landing">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Spin Art Raleigh home">
+        <span class="brand-mark"><img id="navLogo" src="/assets/spin-art-logo.png" alt=""></span>
+        <span>
+          <strong>Spin Art Raleigh</strong>
+          <small>Creative Studio</small>
+        </span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="/#experiences">Tickets</a>
+        <a href="/#gallery">Gallery</a>
+        <a href="/#faq">FAQ</a>
+        <a class="nav-cta" href="/book.html">Book Now</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <video class="hero-video" id="heroVideo" autoplay muted loop playsinline hidden></video>
+        <div class="hero-media" id="heroMedia"></div>
+        <div class="paint-ribbon" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <img class="hero-logo" id="heroLogo" src="/assets/spin-art-logo.png" alt="Spin Art Nation">
+            <h1>
+              <span class="hero-action-word" id="heroActionWord">Pour</span>
+              <span class="hero-your">your</span>
+              <strong class="hero-creativity">creativity</strong>
+            </h1>
+            <p id="heroText">Loading booking options...</p>
+            <div class="hero-actions">
+              <a class="primary-link" href="/book.html">Reserve tickets</a>
+              <a class="secondary-link" href="/book.html?experience=private-events">Private Events</a>
+            </div>
+          </div>
+        </div>
+        <div class="hero-info-bar" id="occasionTicker" aria-label="Popular occasions"></div>
+      </section>
+
+      <section class="section how-it-works-section" aria-label="How it works">
+        <div class="section-heading">
+          <h2>How it works</h2>
+        </div>
+        <div class="comic-strip">
+          <article>
+            <span class="comic-step">01</span>
+            <strong>Reserve your spot</strong>
+            <p>Pick spin, pour, tumbler, splatter, group, or private events.</p>
+          </article>
+          <article>
+            <span class="comic-step">02</span>
+            <strong>Choose your media</strong>
+            <p>Select your project, colors, finishes, and add-ons before you arrive.</p>
+          </article>
+          <article>
+            <span class="comic-step">03</span>
+            <strong>Arrive early</strong>
+            <p>Come 15 minutes early, check in, and suit up for the messy part.</p>
+          </article>
+          <article>
+            <span class="comic-step">04</span>
+            <strong>Experience it</strong>
+            <p>Pour, spin, splatter, laugh, and make the room part of the memory.</p>
+          </article>
+          <article>
+            <span class="comic-step">05</span>
+            <strong>Take it home</strong>
+            <p>Rapid dry when available, or leave it boxed and pick it up once dry.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="experiences">
+        <div class="section-heading">
+          <p class="eyebrow">Tickets & events</p>
+          <h2>Select an Experience</h2>
+          <a class="text-link" href="/book.html">See availability</a>
+        </div>
+        <div class="cards" id="experienceCards"></div>
+      </section>
+
+      <section class="section immersive-story" id="gallery">
+        <div class="story-copy">
+          <p class="eyebrow hero-badge">Made for photos, parties, and full-send color</p>
+          <h2>A studio where the art happens all around you.</h2>
+          <p>Pick a project, choose your colors, suit up, and make something custom with people you actually want to spend time with.</p>
+          <a class="primary-link" href="/book.html">Pick your session</a>
+        </div>
+        <div class="story-media-grid" aria-label="Studio photos">
+          <img class="story-media-large" src="/assets/spin-art-pride-three-canvases-web.jpg" alt="">
+          <img src="/assets/spin-art-gallery-extra-02-web.jpg" alt="">
+          <img src="/assets/spin-art-gallery-extra-03-web.jpg" alt="">
+        </div>
+      </section>
+
+      <section class="section split" id="faq">
+        <div id="contentSections"></div>
+        <div class="faq-panel">
+          <p class="eyebrow">FAQs</p>
+          <div id="faqList"></div>
+        </div>
+      </section>
+
+      <section class="section final-cta">
+        <p class="eyebrow">Ready when you are</p>
+        <h2>Reserve the color, the room, and the moment.</h2>
+        <a class="primary-link" href="/book.html">Book Spin Art Raleigh</a>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

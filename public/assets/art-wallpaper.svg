@@ -1,0 +1,17 @@
+<svg width="160" height="160" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M34 32c13-11 31-6 34 7 3 15-17 24-28 15l-5 9c-3 5-11 2-10-4l3-13c-7-2-7-9 6-14Z" stroke="#ffffff" stroke-opacity=".22" stroke-width="2.5"/>
+    <circle cx="42" cy="39" r="3" fill="#ffffff" fill-opacity=".18" stroke="none"/>
+    <circle cx="52" cy="38" r="3" fill="#ffffff" fill-opacity=".18" stroke="none"/>
+    <circle cx="59" cy="45" r="3" fill="#ffffff" fill-opacity=".18" stroke="none"/>
+    <path d="M104 22l30 30M99 27l30 30" stroke="#16a3a8" stroke-opacity=".28" stroke-width="5"/>
+    <path d="M133 51l8 9-8 8-9-8Z" fill="#f6c445" fill-opacity=".22" stroke="#f6c445" stroke-opacity=".26" stroke-width="2"/>
+    <path d="M27 116c13-22 45-15 36 8-7 19-42 15-36-8Z" stroke="#f04f7f" stroke-opacity=".24" stroke-width="4"/>
+    <path d="M39 109c4 11 18 12 21 1" stroke="#ffffff" stroke-opacity=".16" stroke-width="2"/>
+    <path d="M111 113c5-13 24-9 20 4-4 14-25 11-20-4Z" fill="#ff4f12" fill-opacity=".24" stroke="none"/>
+    <circle cx="104" cy="128" r="4" fill="#f6c445" fill-opacity=".26" stroke="none"/>
+    <circle cx="132" cy="100" r="3" fill="#16a3a8" fill-opacity=".28" stroke="none"/>
+    <circle cx="121" cy="134" r="2.5" fill="#ffffff" fill-opacity=".18" stroke="none"/>
+    <path d="M78 87l9-17 7 18 19 3-15 12 4 19-16-10-17 9 5-19-14-13Z" fill="#f6c445" fill-opacity=".18" stroke="#f6c445" stroke-opacity=".2" stroke-width="1.5"/>
+  </g>
+</svg>

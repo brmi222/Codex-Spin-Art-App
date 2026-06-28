@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Book | Spin Art Raleigh</title>
+    <link rel="stylesheet" href="/styles.css?v=18">
+  </head>
+  <body data-page="booking">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Spin Art Raleigh home">
+        <span class="brand-mark"><img id="navLogo" src="/assets/spin-art-logo.png" alt=""></span>
+        <span>
+          <strong>Spin Art Raleigh</strong>
+          <small>Booking Studio</small>
+        </span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="/">Home</a>
+        <a href="/#experiences">Experiences</a>
+        <a class="nav-cta" href="/book.html">Book Now</a>
+      </nav>
+    </header>
+
+    <main class="booking-page">
+      <section class="page-intro">
+        <div class="page-intro-copy">
+          <p class="eyebrow hero-badge">Book online</p>
+          <h1 id="bookingIntroTitle">Reserve your spin</h1>
+          <p id="bookingIntroCopy">Choose the experience, lock in your time, and add the details staff needs before you arrive.</p>
+        </div>
+        <figure class="booking-visual">
+          <img id="bookingIntroImage" src="/assets/drive-2632.jpg" alt="">
+        </figure>
+      </section>
+
+      <section class="booking-shell" id="bookingFlow" aria-label="Booking form">
+        <aside class="booking-panel">
+          <div>
+            <p class="eyebrow">Step 1</p>
+            <h2>Choose an experience</h2>
+          </div>
+          <div class="experience-list" id="experienceList"></div>
+        </aside>
+
+        <form class="booking-form" id="bookingForm">
+          <div class="form-header">
+            <div>
+              <p class="eyebrow">Step 2</p>
+              <h2>Reserve your time</h2>
+            </div>
+            <div class="price-pill" id="pricePill">$0</div>
+          </div>
+
+          <div class="field-grid">
+            <label>
+              Date
+              <input type="date" id="dateInput" required>
+            </label>
+            <label>
+              Time
+              <select id="timeInput" required></select>
+            </label>
+            <label>
+              Guests
+              <input type="number" id="guestInput" min="1" value="1" required>
+            </label>
+            <label>
+              Payment
+              <select id="paymentMode">
+                <option value="reservation_fee">Reservation fee now, art in store</option>
+                <option value="pay_full">Pay all up front</option>
+              </select>
+            </label>
+            <label>
+              Occasion
+              <select id="occasionInput"></select>
+            </label>
+          </div>
+
+          <fieldset>
+            <legend>Choose your project</legend>
+            <div class="option-list" id="projectList"></div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Optional upgrades</legend>
+            <div class="addon-list" id="addonList"></div>
+          </fieldset>
+
+          <div class="field-grid">
+            <label>
+              Name
+              <input type="text" id="nameInput" autocomplete="name" required>
+            </label>
+            <label>
+              Email
+              <input type="email" id="emailInput" autocomplete="email" required>
+            </label>
+            <label>
+              Phone
+              <input type="tel" id="phoneInput" autocomplete="tel">
+            </label>
+          </div>
+
+          <label>
+            Notes
+            <textarea id="notesInput" rows="3" placeholder="Birthday name, accessibility notes, questions, etc."></textarea>
+          </label>
+
+          <fieldset class="waiver-section">
+            <legend>Waiver</legend>
+            <div id="waiverFields"></div>
+          </fieldset>
+
+          <div class="summary-row">
+            <span id="policyText">Cancellation policy loading...</span>
+            <button type="submit">Reserve booking</button>
+          </div>
+          <p class="status" id="bookingStatus" role="status"></p>
+          <div class="payment-panel" id="paymentPanel" hidden></div>
+        </form>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
