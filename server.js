@@ -508,6 +508,30 @@ function validateBookingPayload(store, payload) {
   return null;
 }
 
+function validateEmployeeBookingPayload(store, payload) {
+  const experience = getExperience(store, payload.experienceId);
+  if (!experience || !experience.isPublic) return "Choose a valid experience.";
+  if (!payload.date || !payload.time) return "Choose a date and time.";
+
+  const guestCount = Number(payload.guestCount);
+  if (!Number.isInteger(guestCount) || guestCount < experience.minGuests || guestCount > experience.maxGuests) {
+    return `Guest count must be between ${experience.minGuests} and ${experience.maxGuests}.`;
+  }
+
+  if (!payload.customer || !String(payload.customer.name || "").trim()) {
+    return "Customer name is required.";
+  }
+
+  const slot = buildSlots(store, experience.id, payload.date).find(item => item.time === payload.time);
+  const resource = getResource(store, experience.resourceId);
+  const hasEnoughCapacity = resource?.capacityMode === "bookings" ? slot?.remaining > 0 : slot?.remaining >= guestCount;
+  if (!slot || !slot.isAvailable || !hasEnoughCapacity) {
+    return "That time is no longer available for the selected group size.";
+  }
+
+  return null;
+}
+
 async function handleApi(req, res, url) {
   const store = readStore();
   cleanupHolds(store);
@@ -567,6 +591,67 @@ async function handleApi(req, res, url) {
     }
 
     return sendJson(res, 200, { date, resources, rows });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/employee/bookings") {
+    const payload = await parseBody(req);
+    const validationError = validateEmployeeBookingPayload(store, payload);
+    if (validationError) return sendJson(res, 400, { error: validationError });
+
+    const experience = getExperience(store, payload.experienceId);
+    const startsAt = toDateTime(payload.date, payload.time);
+    const endsAt = addMinutes(startsAt, experience.durationMinutes + experience.bufferMinutes);
+    const guestCount = Number(payload.guestCount);
+    const projectOptions = experience.projectOptions || [];
+    const projectId = String(payload.projectId || projectOptions[0]?.id || "").trim();
+    const project = projectOptions.find(item => item.id === projectId);
+    const projectName = String(payload.projectName || project?.name || "").trim();
+    const breakdown = pricingBreakdown(store, experience, guestCount, [], projectId, "reservation_fee");
+    const now = new Date().toISOString();
+
+    const booking = {
+      id: crypto.randomUUID(),
+      status: "confirmed",
+      source: "employee",
+      paymentMode: "pay_in_store",
+      experienceId: experience.id,
+      experienceName: experience.name,
+      resourceId: experience.resourceId,
+      startsAt: startsAt.toISOString(),
+      endsAt: endsAt.toISOString(),
+      guestCount,
+      addOnIds: [],
+      projectId,
+      projectName,
+      occasion: String(payload.occasion || "").trim(),
+      occasionId: "",
+      subtotalCents: breakdown.subtotalCents,
+      taxCents: breakdown.taxCents,
+      totalCents: breakdown.totalCents,
+      reservationFeeCents: breakdown.reservationFeeSubtotalCents,
+      amountDueNowSubtotalCents: 0,
+      amountDueNowTaxCents: 0,
+      amountDueNowCents: 0,
+      depositCents: 0,
+      balanceCents: breakdown.totalCents,
+      paymentStatus: "pay_in_store",
+      paymentIds: [],
+      waiverStatus: "not_sent",
+      waiver: null,
+      waivers: [],
+      customer: {
+        name: String(payload.customer.name).trim(),
+        email: String(payload.customer.email || "").trim(),
+        phone: String(payload.customer.phone || "").trim()
+      },
+      notes: String(payload.notes || "").trim(),
+      createdAt: now,
+      updatedAt: now
+    };
+
+    store.bookings.push(booking);
+    writeStore(store);
+    return sendJson(res, 201, { booking });
   }
 
   if (req.method === "POST" && url.pathname === "/api/bookings") {

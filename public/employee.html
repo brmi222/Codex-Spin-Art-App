@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Employee | Spin Art Raleigh</title>
-    <link rel="stylesheet" href="/styles.css?v=19">
+    <link rel="stylesheet" href="/styles.css?v=20">
   </head>
   <body data-page="employee">
     <header class="topbar admin-topbar">
@@ -33,6 +33,49 @@
           Date
           <input type="date" id="employeeDate">
         </label>
+      </section>
+
+      <section class="employee-booking-card" aria-label="Schedule appointment">
+        <div>
+          <p class="eyebrow">Walk-ins & phone calls</p>
+          <h2>Schedule appointment</h2>
+        </div>
+        <form class="employee-booking-form" id="employeeBookingForm">
+          <label>
+            Experience
+            <select id="employeeExperienceInput" required></select>
+          </label>
+          <label>
+            Date
+            <input type="date" id="employeeAppointmentDate" required>
+          </label>
+          <label>
+            Time
+            <select id="employeeAppointmentTime" required></select>
+          </label>
+          <label>
+            Guests
+            <input type="number" id="employeeGuestInput" min="1" value="1" required>
+          </label>
+          <label>
+            Customer name
+            <input type="text" id="employeeNameInput" autocomplete="name" required>
+          </label>
+          <label>
+            Phone
+            <input type="tel" id="employeePhoneInput" autocomplete="tel">
+          </label>
+          <label>
+            Email
+            <input type="email" id="employeeEmailInput" autocomplete="email">
+          </label>
+          <label>
+            Notes
+            <input type="text" id="employeeNotesInput" placeholder="Walk-in, phone booking, birthday name, etc.">
+          </label>
+          <button type="submit">Add to schedule</button>
+          <p class="status" id="employeeBookingStatus" role="status"></p>
+        </form>
       </section>
 
       <section class="employee-layout" aria-label="Employee calendar">

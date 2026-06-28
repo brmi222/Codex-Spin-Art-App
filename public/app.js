@@ -918,8 +918,37 @@ function daysLabel(days = []) {
 
 function setDefaultEmployeeDate() {
   const dateInput = el("employeeDate");
-  if (!dateInput) return;
-  dateInput.value = new Date().toISOString().slice(0, 10);
+  const appointmentDate = el("employeeAppointmentDate");
+  const today = new Date().toISOString().slice(0, 10);
+  if (dateInput) dateInput.value = today;
+  if (appointmentDate) appointmentDate.value = today;
+}
+
+function employeeFormExperience() {
+  const experienceId = el("employeeExperienceInput")?.value;
+  return state.config.experiences.find(experience => experience.id === experienceId);
+}
+
+function hydrateEmployeeBookingForm() {
+  const experienceInput = el("employeeExperienceInput");
+  if (!experienceInput) return;
+
+  experienceInput.innerHTML = state.config.experiences.map(experience => `
+    <option value="${experience.id}">${experience.name}</option>
+  `).join("");
+  syncEmployeeGuestBounds();
+}
+
+function syncEmployeeGuestBounds() {
+  const experience = employeeFormExperience();
+  const guestInput = el("employeeGuestInput");
+  if (!experience || !guestInput) return;
+  guestInput.min = experience.minGuests;
+  guestInput.max = experience.maxGuests;
+  guestInput.value = Math.min(
+    experience.maxGuests,
+    Math.max(experience.minGuests, Number(guestInput.value || experience.minGuests))
+  );
 }
 
 function resourceCapacityLabel(resource) {
@@ -936,6 +965,27 @@ async function loadEmployeeDay() {
   const date = el("employeeDate")?.value || new Date().toISOString().slice(0, 10);
   const payload = await api(`/api/employee/day?date=${encodeURIComponent(date)}`);
   renderEmployeeCalendar(payload);
+}
+
+async function loadEmployeeAppointmentAvailability() {
+  const experience = employeeFormExperience();
+  const date = el("employeeAppointmentDate")?.value;
+  const timeInput = el("employeeAppointmentTime");
+  if (!experience || !date || !timeInput) return;
+
+  const payload = await api(`/api/availability?experienceId=${encodeURIComponent(experience.id)}&date=${encodeURIComponent(date)}`);
+  const available = payload.slots.filter(slot => slot.isAvailable);
+  timeInput.innerHTML = available.length
+    ? available.map(slot => `<option value="${slot.time}">${slot.time} | ${slot.remaining} available</option>`).join("")
+    : "<option value=\"\">No available times</option>";
+}
+
+function experienceForResource(resourceId) {
+  const priority = ["spin", "tumblers", "splatter", "private-events", "group-events", "pour-art"];
+  return priority
+    .map(id => state.config.experiences.find(experience => experience.id === id))
+    .find(experience => experience?.resourceId === resourceId) ||
+    state.config.experiences.find(experience => experience.resourceId === resourceId);
 }
 
 function renderEmployeeCalendar(day) {
@@ -967,6 +1017,15 @@ function renderEmployeeCalendar(day) {
       const row = day.rows.find(item => item.time === button.dataset.time);
       const resource = day.resources.find(item => item.id === button.dataset.resource);
       const cell = row?.cells.find(item => item.resourceId === button.dataset.resource);
+      const experience = experienceForResource(button.dataset.resource);
+      if (el("employeeAppointmentDate")) el("employeeAppointmentDate").value = day.date;
+      if (experience && el("employeeExperienceInput")) {
+        el("employeeExperienceInput").value = experience.id;
+        syncEmployeeGuestBounds();
+        loadEmployeeAppointmentAvailability().then(() => {
+          if (el("employeeAppointmentTime")) el("employeeAppointmentTime").value = button.dataset.time;
+        }).catch(error => setText("employeeBookingStatus", error.message));
+      }
       renderEmployeeDetail(day.date, row, resource, cell);
     });
   });
@@ -998,6 +1057,41 @@ function renderEmployeeDetail(date, row, resource, cell) {
       `).join("") : "<p>No bookings in this period.</p>"}
     </div>
   `;
+}
+
+async function submitEmployeeAppointment(event) {
+  event.preventDefault();
+  const experience = employeeFormExperience();
+  setText("employeeBookingStatus", "Adding appointment...");
+
+  try {
+    const payload = {
+      experienceId: experience.id,
+      date: el("employeeAppointmentDate").value,
+      time: el("employeeAppointmentTime").value,
+      guestCount: Number(el("employeeGuestInput").value),
+      customer: {
+        name: el("employeeNameInput").value,
+        phone: el("employeePhoneInput").value,
+        email: el("employeeEmailInput").value
+      },
+      notes: el("employeeNotesInput").value
+    };
+
+    const result = await api("/api/employee/bookings", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+
+    setText("employeeBookingStatus", `Added ${result.booking.experienceName} for ${shortDateTime(result.booking.startsAt)}.`);
+    event.target.reset();
+    setDefaultEmployeeDate();
+    hydrateEmployeeBookingForm();
+    await loadEmployeeAppointmentAvailability();
+    await loadEmployeeDay();
+  } catch (error) {
+    setText("employeeBookingStatus", error.message);
+  }
 }
 
 function selectedRuleDays() {
@@ -1100,8 +1194,17 @@ async function initAdmin() {
 
 async function initEmployee() {
   setDefaultEmployeeDate();
+  hydrateEmployeeBookingForm();
+  await loadEmployeeAppointmentAvailability();
   await loadEmployeeDay();
   el("employeeDate").addEventListener("change", loadEmployeeDay);
+  el("employeeAppointmentDate").addEventListener("change", loadEmployeeAppointmentAvailability);
+  el("employeeExperienceInput").addEventListener("change", async () => {
+    syncEmployeeGuestBounds();
+    await loadEmployeeAppointmentAvailability();
+  });
+  el("employeeGuestInput").addEventListener("input", syncEmployeeGuestBounds);
+  el("employeeBookingForm").addEventListener("submit", submitEmployeeAppointment);
   el("refreshEmployee").addEventListener("click", loadEmployeeDay);
 }
 
