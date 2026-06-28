@@ -157,8 +157,7 @@ function renderOccasionTicker(occasions = []) {
   const labels = occasionItems.length ? occasionItems : ["Date nights", "Birthdays", "Team building"];
   const group = labels.map(item => `<span>${item}</span>`).join("");
   target.innerHTML = `
-    <div class="occasion-track" aria-hidden="true">
-      <div>${group}</div>
+    <div class="occasion-track">
       <div>${group}</div>
     </div>
   `;
