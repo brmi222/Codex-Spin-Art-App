@@ -955,6 +955,10 @@ function resourceCapacityLabel(resource) {
   return `${resource.calendarLabel || resource.name} (${resource.capacity})`;
 }
 
+function resourceCapacityUnit(resource) {
+  return resource.capacityUnit || (resource.capacityMode === "bookings" ? "bookings" : "spots");
+}
+
 function activeCellClass(cell) {
   if (cell.booked <= 0) return "is-open";
   if (cell.available <= 0) return "is-full";
@@ -975,8 +979,10 @@ async function loadEmployeeAppointmentAvailability() {
 
   const payload = await api(`/api/availability?experienceId=${encodeURIComponent(experience.id)}&date=${encodeURIComponent(date)}`);
   const available = payload.slots.filter(slot => slot.isAvailable);
+  const resource = state.config.resources.find(item => item.id === experience.resourceId);
+  const unit = resource ? resourceCapacityUnit(resource) : "slots";
   timeInput.innerHTML = available.length
-    ? available.map(slot => `<option value="${slot.time}">${slot.time} | ${slot.remaining} available</option>`).join("")
+    ? available.map(slot => `<option value="${slot.time}">${slot.time} | ${slot.remaining} ${unit} available</option>`).join("")
     : "<option value=\"\">No available times</option>";
 }
 
@@ -998,7 +1004,7 @@ function renderEmployeeCalendar(day) {
     ${day.resources.map(resource => `
       <div class="employee-calendar-head">
         <strong>${resourceCapacityLabel(resource)}</strong>
-        <span>${resource.capacityMode === "bookings" ? "bookings" : "spots"}</span>
+        <span>${resourceCapacityUnit(resource)}</span>
       </div>
     `).join("")}
     ${day.rows.map(row => `
@@ -1040,7 +1046,7 @@ function renderEmployeeDetail(date, row, resource, cell) {
     <h2>${resourceCapacityLabel(resource)}</h2>
     <div class="employee-detail-metric">
       <strong>${cell.booked}/${cell.capacity}</strong>
-      <span>${cell.available} available</span>
+      <span>${cell.available} ${resourceCapacityUnit(resource)} available</span>
     </div>
     <div class="employee-detail-bookings">
       ${cell.bookings.length ? cell.bookings.map(booking => `

@@ -150,15 +150,16 @@
       "id": "spin-stations",
       "name": "Spin",
       "calendarLabel": "Spin",
-      "capacity": 6,
-      "capacityMode": "guests",
+      "capacity": 4,
+      "capacityMode": "bookings",
       "isExclusive": false,
       "isEmployeeVisible": true,
       "displayOrder": 1,
       "experienceIds": [
         "spin",
         "pour-art"
-      ]
+      ],
+      "capacityUnit": "stations"
     },
     {
       "id": "tumbler-stations",
@@ -171,7 +172,8 @@
       "displayOrder": 2,
       "experienceIds": [
         "tumblers"
-      ]
+      ],
+      "capacityUnit": "spots"
     },
     {
       "id": "splatter-room",
@@ -184,7 +186,8 @@
       "displayOrder": 3,
       "experienceIds": [
         "splatter"
-      ]
+      ],
+      "capacityUnit": "spots"
     },
     {
       "id": "birthday-room",
@@ -198,7 +201,8 @@
       "experienceIds": [
         "group-events",
         "private-events"
-      ]
+      ],
+      "capacityUnit": "room"
     }
   ],
   "experiences": [
