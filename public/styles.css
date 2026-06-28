@@ -1949,6 +1949,34 @@ body[data-page="landing"] .faq-item {
   font-size: 0.9rem;
 }
 
+.employee-booking-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.employee-booking-actions button,
+.employee-booking-actions span {
+  min-height: 34px;
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.employee-booking-actions button {
+  color: #071424;
+  background: #8fe8ea;
+}
+
+.employee-booking-actions span {
+  display: inline-flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.1);
+}
+
 @media (max-width: 860px) {
   .topbar,
   .form-header,

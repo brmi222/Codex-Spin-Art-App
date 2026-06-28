@@ -1043,11 +1043,41 @@ function renderEmployeeDetail(date, row, resource, cell) {
           <p>${booking.experienceName} | ${booking.guestCount} guests</p>
           ${booking.projectName ? `<p>Project: ${booking.projectName}</p>` : ""}
           ${booking.occasion ? `<p>Occasion: ${booking.occasion}</p>` : ""}
-          <p>Payment: ${(booking.paymentStatus || booking.status).replaceAll("_", " ")} | Waiver: ${booking.waiverStatus.replaceAll("_", " ")}</p>
+          <p>Payment: ${(booking.paymentStatus || booking.status).replaceAll("_", " ")} | Balance: ${dollars(booking.balanceCents)} | Waiver: ${booking.waiverStatus.replaceAll("_", " ")}</p>
+          <div class="employee-booking-actions">
+            ${booking.balanceCents > 0 || booking.paymentStatus !== "paid"
+              ? `<button type="button" data-employee-payment="${booking.id}">Mark paid in POS</button>`
+              : `<span>Paid</span>`}
+            ${booking.waiverStatus !== "signed"
+              ? `<button type="button" data-employee-waiver="${booking.id}">Mark waiver signed</button>`
+              : `<span>Waiver signed</span>`}
+          </div>
         </article>
       `).join("") : "<p>No bookings in this period.</p>"}
     </div>
   `;
+
+  target.querySelectorAll("[data-employee-payment]").forEach(button => {
+    button.addEventListener("click", async () => {
+      await api(`/api/bookings/${button.dataset.employeePayment}`, {
+        method: "PATCH",
+        body: JSON.stringify({ paymentStatus: "paid" })
+      });
+      await loadEmployeeDay();
+      target.innerHTML = "<p class=\"eyebrow\">Updated</p><h2>Payment marked paid</h2><p>Select the time slot again to view refreshed details.</p>";
+    });
+  });
+
+  target.querySelectorAll("[data-employee-waiver]").forEach(button => {
+    button.addEventListener("click", async () => {
+      await api(`/api/bookings/${button.dataset.employeeWaiver}`, {
+        method: "PATCH",
+        body: JSON.stringify({ waiverStatus: "signed" })
+      });
+      await loadEmployeeDay();
+      target.innerHTML = "<p class=\"eyebrow\">Updated</p><h2>Waiver marked signed</h2><p>Select the time slot again to view refreshed details.</p>";
+    });
+  });
 }
 
 async function submitEmployeeAppointment(event) {

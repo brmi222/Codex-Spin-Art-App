@@ -825,6 +825,14 @@ async function handleApi(req, res, url) {
     if (payload.waiverStatus && ["not_sent", "sent", "signed", "accepted_online"].includes(payload.waiverStatus)) {
       booking.waiverStatus = payload.waiverStatus;
     }
+    if (payload.paymentStatus && ["pending", "pay_in_store", "paid", "failed", "refunded"].includes(payload.paymentStatus)) {
+      booking.paymentStatus = payload.paymentStatus;
+      if (payload.paymentStatus === "paid") {
+        booking.balanceCents = 0;
+        booking.paidAt = booking.paidAt || new Date().toISOString();
+        booking.status = ["pending_payment", "confirmed"].includes(booking.status) ? "paid" : booking.status;
+      }
+    }
     if (typeof payload.notes === "string") booking.notes = payload.notes.trim();
     booking.updatedAt = new Date().toISOString();
 

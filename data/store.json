@@ -252,7 +252,8 @@
         "glitter-finish",
         "extra-paints",
         "booking-insurance",
-        "quick-dry"
+        "quick-dry",
+        "mini-pour-bear-keychain"
       ],
       "availability": {
         "daysOfWeek": [
@@ -316,7 +317,8 @@
         "glitter-finish",
         "extra-paints",
         "booking-insurance",
-        "quick-dry"
+        "quick-dry",
+        "mini-pour-bear-keychain"
       ],
       "availability": {
         "daysOfWeek": [
@@ -391,7 +393,8 @@
       "addOnIds": [
         "glitter-finish",
         "extra-paints",
-        "booking-insurance"
+        "booking-insurance",
+        "mini-pour-bear-keychain"
       ],
       "availability": {
         "daysOfWeek": [
@@ -448,7 +451,8 @@
       "addOnIds": [
         "tumbler-glitter",
         "more-colors",
-        "booking-insurance"
+        "booking-insurance",
+        "mini-pour-bear-keychain"
       ],
       "availability": {
         "daysOfWeek": [
@@ -496,7 +500,8 @@
       ],
       "addOnIds": [
         "booking-insurance",
-        "snack-table"
+        "snack-table",
+        "mini-pour-bear-keychain"
       ],
       "availability": {
         "daysOfWeek": [
@@ -545,7 +550,8 @@
       "addOnIds": [
         "booking-insurance",
         "party-favor-pack",
-        "snack-table"
+        "snack-table",
+        "mini-pour-bear-keychain"
       ],
       "availability": {
         "daysOfWeek": [
@@ -609,6 +615,12 @@
       "name": "Quick Dry",
       "description": "Speed up dry time for canvas projects when guests want to take art home sooner.",
       "priceCents": 1000
+    },
+    {
+      "id": "mini-pour-bear-keychain",
+      "name": "Mini Pour Bear Keychain",
+      "description": "Add a mini bear keychain using the same paint setup as your booked experience.",
+      "priceCents": 500
     }
   ],
   "policies": {
