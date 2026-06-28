@@ -521,11 +521,14 @@ nav button:hover {
 
 body[data-page="landing"] main {
   background:
-    url("/assets/art-wallpaper.svg"),
+    linear-gradient(rgba(7, 20, 36, 0.9), rgba(7, 20, 36, 0.96)),
+    url("/assets/spin-art-gallery-extra-03-web.jpg"),
     radial-gradient(circle at 10% 28%, rgba(255, 79, 18, 0.14), transparent 20%),
     radial-gradient(circle at 88% 42%, rgba(22, 163, 168, 0.16), transparent 24%),
     var(--navy);
-  background-size: 160px 160px, auto, auto, auto;
+  background-size: auto, cover, auto, auto, auto;
+  background-position: center top, center top, center, center, center;
+  background-attachment: scroll, fixed, scroll, scroll, scroll;
 }
 
 body[data-page="landing"] .section {
@@ -1287,8 +1290,9 @@ body[data-page="landing"] .ticket-footer {
   color: var(--white);
   background:
     linear-gradient(rgba(7, 20, 36, 0.91), rgba(7, 20, 36, 0.95)),
-    url("/assets/art-wallpaper.svg");
-  background-size: auto, 290px 290px;
+    url("/assets/spin-art-gallery-extra-03-web.jpg");
+  background-size: auto, cover;
+  background-position: center, center;
 }
 
 .occasion-hero {
