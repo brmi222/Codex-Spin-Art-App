@@ -167,7 +167,12 @@ function heroMediaItems() {
   const items = [
     { type: "image", url: site.hero.imageUrl, title: "Hero image" },
     ...(site.media || [])
-  ].filter(item => item.url && item.type !== "video");
+  ].filter(item => (
+    item.url &&
+    item.type !== "video" &&
+    item.id !== "tumbler-process" &&
+    item.url !== "/assets/spin-art-gallery-extra-01-web.jpg"
+  ));
 
   return items.filter((item, index, all) => (
     all.findIndex(candidate => candidate.url === item.url) === index
