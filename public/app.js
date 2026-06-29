@@ -1158,6 +1158,14 @@ function renderEmployeeDetail(date, row, resource, cell) {
   const needsPayment = booking => Number(booking.balanceCents || 0) > 0 && booking.paymentStatus !== "paid";
   const paymentClass = booking => needsPayment(booking) ? "has-balance" : "is-paid";
   const paymentLabel = booking => needsPayment(booking) ? `Balance ${dollars(booking.balanceCents)}` : "Paid";
+  const statusActions = booking => `
+    ${booking.status !== "checked_in" && !["completed", "cancelled", "no_show"].includes(booking.status)
+      ? `<button type="button" data-employee-status="${booking.id}" data-status-value="checked_in">Check in</button>`
+      : booking.status === "checked_in" ? `<span>Checked in</span>` : ""}
+    ${!["checked_in", "completed", "cancelled", "no_show"].includes(booking.status)
+      ? `<button type="button" class="employee-danger-action" data-employee-status="${booking.id}" data-status-value="no_show">No show</button>`
+      : booking.status === "no_show" ? `<span>No show</span>` : ""}
+  `;
 
   target.innerHTML = `
     <p class="eyebrow">${date} at ${row.time}</p>
@@ -1180,6 +1188,7 @@ function renderEmployeeDetail(date, row, resource, cell) {
           <p>Payment: ${(booking.paymentStatus || booking.status).replaceAll("_", " ")} | Waiver: ${booking.waiverStatus.replaceAll("_", " ")}</p>
           <div class="employee-booking-actions">
             <button type="button" data-employee-detail="${booking.id}">View details</button>
+            ${statusActions(booking)}
             ${needsPayment(booking)
               ? `<button type="button" data-employee-payment="${booking.id}">Take payment</button>`
               : `<span>Paid</span>`}
@@ -1196,6 +1205,18 @@ function renderEmployeeDetail(date, row, resource, cell) {
     button.addEventListener("click", () => {
       const booking = cell.bookings.find(item => item.id === button.dataset.employeeDetail);
       if (booking) renderEmployeeBookingDetail(date, row, resource, cell, booking);
+    });
+  });
+
+  target.querySelectorAll("[data-employee-status]").forEach(button => {
+    button.addEventListener("click", async () => {
+      await api(`/api/bookings/${button.dataset.employeeStatus}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: button.dataset.statusValue })
+      });
+      await loadEmployeeDay();
+      const label = button.dataset.statusValue === "checked_in" ? "Guest checked in" : "Marked no show";
+      target.innerHTML = `<p class="eyebrow">Updated</p><h2>${label}</h2><p>The calendar has been refreshed.</p>`;
     });
   });
 
@@ -1284,6 +1305,12 @@ function renderEmployeeBookingDetail(date, row, resource, cell, booking) {
     </div>
 
     <div class="employee-booking-actions">
+      ${booking.status !== "checked_in" && !["completed", "cancelled", "no_show"].includes(booking.status)
+        ? `<button type="button" data-employee-status="${booking.id}" data-status-value="checked_in">Check in</button>`
+        : booking.status === "checked_in" ? `<span>Checked in</span>` : ""}
+      ${!["checked_in", "completed", "cancelled", "no_show"].includes(booking.status)
+        ? `<button type="button" class="employee-danger-action" data-employee-status="${booking.id}" data-status-value="no_show">No show</button>`
+        : booking.status === "no_show" ? `<span>No show</span>` : ""}
       ${balance > 0 && booking.paymentStatus !== "paid"
         ? `<button type="button" data-employee-payment="${booking.id}">Take payment</button>`
         : `<span>Paid</span>`}
@@ -1304,6 +1331,24 @@ function renderEmployeeBookingDetail(date, row, resource, cell, booking) {
   `;
 
   el("employeeBackToSlot")?.addEventListener("click", () => renderEmployeeDetail(date, row, resource, cell));
+  target.querySelectorAll("[data-employee-status]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const result = await api(`/api/bookings/${button.dataset.employeeStatus}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: button.dataset.statusValue })
+      });
+      cell.bookings = button.dataset.statusValue === "no_show"
+        ? cell.bookings.filter(item => item.id !== result.booking.id)
+        : cell.bookings.map(item => item.id === result.booking.id ? result.booking : item);
+      if (button.dataset.statusValue === "no_show") {
+        await loadEmployeeDay();
+        target.innerHTML = "<p class=\"eyebrow\">Updated</p><h2>Marked no show</h2><p>The booking has been removed from active capacity.</p>";
+        return;
+      }
+      renderEmployeeBookingDetail(date, row, resource, cell, result.booking);
+      await loadEmployeeDay();
+    });
+  });
   target.querySelectorAll("[data-employee-payment]").forEach(button => {
     button.addEventListener("click", async () => {
       const result = await api(`/api/bookings/${button.dataset.employeePayment}`, {

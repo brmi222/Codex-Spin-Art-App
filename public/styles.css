@@ -2105,6 +2105,11 @@ body[data-page="landing"] .faq-item {
   background: #8fe8ea;
 }
 
+.employee-booking-actions .employee-danger-action {
+  color: var(--white);
+  background: rgba(255, 79, 18, 0.86);
+}
+
 .employee-booking-actions span {
   display: inline-flex;
   align-items: center;
