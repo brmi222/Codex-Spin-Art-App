@@ -1811,6 +1811,81 @@ body[data-page="landing"] .faq-item {
   color: #8fe8ea;
 }
 
+.employee-addon-drawer,
+.employee-payment-summary {
+  grid-column: 1 / -1;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(7, 20, 36, 0.28);
+}
+
+.employee-addon-drawer summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 0.65rem 0.8rem;
+  color: var(--white);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.employee-addon-drawer summary::marker {
+  color: var(--teal);
+}
+
+.employee-addon-drawer summary span {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.82rem;
+}
+
+.employee-addon-list {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0 0.8rem 0.8rem;
+}
+
+.employee-addon-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.employee-addon-row strong,
+.employee-addon-row small {
+  display: block;
+}
+
+.employee-addon-row small {
+  color: rgba(255, 255, 255, 0.58);
+  font-weight: 850;
+}
+
+.employee-addon-row input {
+  min-height: 42px;
+  text-align: center;
+}
+
+.employee-payment-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.8rem;
+  align-items: center;
+  padding: 0.7rem 0.8rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.employee-payment-summary strong {
+  color: var(--white);
+}
+
+.employee-payment-summary span {
+  font-size: 0.86rem;
+}
+
 .employee-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);

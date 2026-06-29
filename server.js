@@ -405,14 +405,19 @@ function money(cents) {
   return Math.round(Number(cents || 0));
 }
 
-function calculateTotal(store, experience, guestCount, selectedAddOnIds = [], projectId = "") {
+function calculateTotal(store, experience, guestCount, selectedAddOnIds = [], projectId = "", addOnItems = []) {
   const resource = getResource(store, experience.resourceId);
   const billableGuests = billableGuestCount(resource, experience, guestCount);
   const capacityUnits = capacityUnitsForBooking(resource, guestCount, experience.id);
-  const addOnTotal = selectedAddOnIds.reduce((sum, addOnId) => {
+  const addOnLineTotal = addOnItems.reduce((sum, item) => {
+    const addOn = store.addOns.find(addOnItem => addOnItem.id === item.id);
+    return sum + (addOn ? money(addOn.priceCents) * Math.max(0, Number(item.quantity || 0)) : 0);
+  }, 0);
+  const checkedAddOnTotal = selectedAddOnIds.reduce((sum, addOnId) => {
     const addOn = store.addOns.find(item => item.id === addOnId);
     return sum + (addOn ? money(addOn.priceCents) : 0);
-  }, 0);
+  }, 0) * guestCount;
+  const addOnTotal = addOnItems.length ? addOnLineTotal : checkedAddOnTotal;
 
   const project = (experience.projectOptions || []).find(item => item.id === projectId);
   const projectTotal = project ? money(project.priceCents) : 0;
@@ -421,7 +426,7 @@ function calculateTotal(store, experience, guestCount, selectedAddOnIds = [], pr
     ? money(experience.basePriceCents) * billableGuests
     : money(experience.basePriceCents);
 
-  return base + (projectTotal * projectMultiplier) + (addOnTotal * guestCount);
+  return base + (projectTotal * projectMultiplier) + addOnTotal;
 }
 
 function calculateTax(store, subtotalCents) {
@@ -429,8 +434,8 @@ function calculateTax(store, subtotalCents) {
   return Math.round(money(subtotalCents) * rate / 10_000);
 }
 
-function pricingBreakdown(store, experience, guestCount, selectedAddOnIds = [], projectId = "", paymentMode = "reservation_fee") {
-  const subtotalCents = calculateTotal(store, experience, guestCount, selectedAddOnIds, projectId);
+function pricingBreakdown(store, experience, guestCount, selectedAddOnIds = [], projectId = "", paymentMode = "reservation_fee", addOnItems = []) {
+  const subtotalCents = calculateTotal(store, experience, guestCount, selectedAddOnIds, projectId, addOnItems);
   const taxCents = calculateTax(store, subtotalCents);
   const totalCents = subtotalCents + taxCents;
   const resource = getResource(store, experience.resourceId);
@@ -604,6 +609,15 @@ function validateEmployeeBookingPayload(store, payload) {
     return "Customer name is required.";
   }
 
+  const allowedAddOns = new Set(experience.addOnIds || []);
+  const addOnItems = Array.isArray(payload.addOnItems) ? payload.addOnItems : [];
+  for (const item of addOnItems) {
+    const quantity = Number(item.quantity || 0);
+    if (!allowedAddOns.has(item.id) || !Number.isInteger(quantity) || quantity < 0) {
+      return "Choose valid add-ons and quantities for this experience.";
+    }
+  }
+
   const slot = buildSlots(store, experience.id, payload.date).find(item => item.time === payload.time);
   const resource = getResource(store, experience.resourceId);
   const requiredCapacity = requiredCapacityForBooking(resource, experience, guestCount);
@@ -689,7 +703,14 @@ async function handleApi(req, res, url) {
     const projectId = String(payload.projectId || projectOptions[0]?.id || "").trim();
     const project = projectOptions.find(item => item.id === projectId);
     const projectName = String(payload.projectName || project?.name || "").trim();
-    const breakdown = pricingBreakdown(store, experience, guestCount, [], projectId, "reservation_fee");
+    const addOnItems = (Array.isArray(payload.addOnItems) ? payload.addOnItems : [])
+      .map(item => ({
+        id: String(item.id || "").trim(),
+        quantity: Math.max(0, Number(item.quantity || 0))
+      }))
+      .filter(item => item.id && item.quantity > 0);
+    const addOnIds = addOnItems.map(item => item.id);
+    const breakdown = pricingBreakdown(store, experience, guestCount, addOnIds, projectId, "reservation_fee", addOnItems);
     const isPaidInPos = payload.paymentStatus === "paid";
     const now = new Date().toISOString();
 
@@ -704,7 +725,8 @@ async function handleApi(req, res, url) {
       startsAt: startsAt.toISOString(),
       endsAt: endsAt.toISOString(),
       guestCount,
-      addOnIds: [],
+      addOnIds,
+      addOnItems,
       projectId,
       projectName,
       occasion: String(payload.occasion || "").trim(),

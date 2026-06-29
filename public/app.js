@@ -960,6 +960,86 @@ function employeeFormExperience() {
   return state.config.experiences.find(experience => experience.id === experienceId);
 }
 
+function selectedEmployeeAddOnItems() {
+  return [...document.querySelectorAll("[data-employee-addon-qty]")]
+    .map(input => ({
+      id: input.dataset.employeeAddonQty,
+      quantity: Math.max(0, Number(input.value || 0))
+    }))
+    .filter(item => item.id && item.quantity > 0);
+}
+
+function employeeEstimateBreakdown() {
+  const experience = employeeFormExperience();
+  const guests = Number(el("employeeGuestInput")?.value || 0);
+  if (!experience) return { subtotal: 0, tax: 0, total: 0 };
+
+  const capacityUnits = capacityUnitsForExperience(experience, guests);
+  const billableGuests = billableGuestCount(experience, guests);
+  const project = (experience.projectOptions || [])[0];
+  const projectTotal = Number(project?.priceCents || 0);
+  const projectMultiplier = project?.pricingScope === "per_station" ? capacityUnits : guests;
+  const base = isPerGuest(experience)
+    ? Number(experience.basePriceCents || 0) * billableGuests
+    : Number(experience.basePriceCents || 0);
+  const addOnTotal = selectedEmployeeAddOnItems().reduce((sum, item) => {
+    const addOn = state.config.addOns.find(addOnItem => addOnItem.id === item.id);
+    return sum + (addOn ? Number(addOn.priceCents || 0) * item.quantity : 0);
+  }, 0);
+  const subtotal = base + (projectTotal * projectMultiplier) + addOnTotal;
+  const tax = calculateTax(subtotal);
+  return {
+    subtotal,
+    tax,
+    total: subtotal + tax
+  };
+}
+
+function updateEmployeePaymentSummary() {
+  const target = el("employeePaymentSummary");
+  const submitButton = el("employeeSubmitButton");
+  const paymentInput = el("employeePaymentInput");
+  if (!target || !submitButton || !paymentInput) return;
+
+  const breakdown = employeeEstimateBreakdown();
+  const addOnCount = selectedEmployeeAddOnItems().reduce((sum, item) => sum + item.quantity, 0);
+  const isPaidNow = paymentInput.value === "paid";
+  target.innerHTML = `
+    <strong>${dollars(breakdown.total)} total</strong>
+    <span>${dollars(breakdown.subtotal)} subtotal + ${dollars(breakdown.tax)} tax${addOnCount ? ` | ${addOnCount} add-on${addOnCount === 1 ? "" : "s"}` : ""}</span>
+    <span>${isPaidNow ? "Collect payment in POS now. This booking will be marked paid." : "Booking will stay open with a balance due."}</span>
+  `;
+  submitButton.textContent = isPaidNow ? `Take payment & add ${dollars(breakdown.total)}` : "Add to schedule";
+}
+
+function renderEmployeeAddOns() {
+  const target = el("employeeAddonList");
+  const summary = el("employeeAddonSummary");
+  const experience = employeeFormExperience();
+  if (!target || !experience) return;
+
+  const addOns = addOnsForExperience(experience);
+  target.innerHTML = addOns.length ? addOns.map(addOn => `
+    <label class="employee-addon-row">
+      <span>
+        <strong>${addOn.name}</strong>
+        <small>${dollars(addOn.priceCents)} each</small>
+      </span>
+      <input type="number" min="0" step="1" value="0" inputmode="numeric" data-employee-addon-qty="${addOn.id}" aria-label="${addOn.name} quantity">
+    </label>
+  `).join("") : "<p>No add-ons for this experience.</p>";
+
+  target.querySelectorAll("[data-employee-addon-qty]").forEach(input => {
+    input.addEventListener("input", () => {
+      const count = selectedEmployeeAddOnItems().reduce((sum, item) => sum + item.quantity, 0);
+      if (summary) summary.textContent = count ? `${count} selected` : "None selected";
+      updateEmployeePaymentSummary();
+    });
+  });
+  if (summary) summary.textContent = "None selected";
+  updateEmployeePaymentSummary();
+}
+
 function hydrateEmployeeBookingForm() {
   const experienceInput = el("employeeExperienceInput");
   if (!experienceInput) return;
@@ -968,6 +1048,8 @@ function hydrateEmployeeBookingForm() {
     <option value="${experience.id}">${experience.name}</option>
   `).join("");
   syncEmployeeGuestBounds();
+  renderEmployeeAddOns();
+  updateEmployeePaymentSummary();
 }
 
 function syncEmployeeGuestBounds() {
@@ -980,6 +1062,7 @@ function syncEmployeeGuestBounds() {
     experience.maxGuests,
     Math.max(experience.minGuests, Number(guestInput.value || experience.minGuests))
   );
+  updateEmployeePaymentSummary();
 }
 
 function resourceCapacityLabel(resource) {
@@ -1154,8 +1237,11 @@ function renderEmployeeBookingDetail(date, row, resource, cell, booking) {
   const tax = Number(booking.taxCents || 0);
   const subtotal = Number(booking.subtotalCents || Math.max(0, total - tax));
   const paid = Math.max(0, total - balance);
-  const addons = (booking.addOnIds || [])
-    .map(addOnId => state.config.addOns.find(addOn => addOn.id === addOnId)?.name)
+  const addons = (booking.addOnItems?.length ? booking.addOnItems : (booking.addOnIds || []).map(id => ({ id, quantity: 1 })))
+    .map(item => {
+      const addOn = state.config.addOns.find(addOnItem => addOnItem.id === item.id);
+      return addOn ? `${item.quantity || 1}x ${addOn.name}` : "";
+    })
     .filter(Boolean);
 
   target.innerHTML = `
@@ -1260,6 +1346,8 @@ async function submitEmployeeAppointment(event) {
       },
       notes: el("employeeNotesInput").value
     };
+    const addOnItems = selectedEmployeeAddOnItems();
+    if (addOnItems.length) payload.addOnItems = addOnItems;
     if (el("employeePaymentInput")?.value === "paid") {
       payload.paymentStatus = "paid";
     }
@@ -1273,6 +1361,7 @@ async function submitEmployeeAppointment(event) {
     event.target.reset();
     setDefaultEmployeeDate();
     hydrateEmployeeBookingForm();
+    renderEmployeeAddOns();
     await loadEmployeeAppointmentAvailability();
     await loadEmployeeDay();
   } catch (error) {
@@ -1387,9 +1476,14 @@ async function initEmployee() {
   el("employeeAppointmentDate").addEventListener("change", loadEmployeeAppointmentAvailability);
   el("employeeExperienceInput").addEventListener("change", async () => {
     syncEmployeeGuestBounds();
+    renderEmployeeAddOns();
     await loadEmployeeAppointmentAvailability();
   });
-  el("employeeGuestInput").addEventListener("input", syncEmployeeGuestBounds);
+  el("employeeGuestInput").addEventListener("input", () => {
+    syncEmployeeGuestBounds();
+    updateEmployeePaymentSummary();
+  });
+  el("employeePaymentInput").addEventListener("change", updateEmployeePaymentSummary);
   el("employeeBookingForm").addEventListener("submit", submitEmployeeAppointment);
   el("refreshEmployee").addEventListener("click", loadEmployeeDay);
 }

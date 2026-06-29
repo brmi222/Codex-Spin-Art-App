@@ -80,7 +80,12 @@
             Notes
             <input type="text" id="employeeNotesInput" placeholder="Walk-in, phone booking, birthday name, etc.">
           </label>
-          <button type="submit">Add to schedule</button>
+          <details class="employee-addon-drawer" id="employeeAddonDrawer">
+            <summary>Add-ons <span id="employeeAddonSummary">None selected</span></summary>
+            <div class="employee-addon-list" id="employeeAddonList"></div>
+          </details>
+          <div class="employee-payment-summary" id="employeePaymentSummary"></div>
+          <button type="submit" id="employeeSubmitButton">Add to schedule</button>
           <p class="status" id="employeeBookingStatus" role="status"></p>
         </form>
       </section>
