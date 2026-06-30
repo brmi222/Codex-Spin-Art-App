@@ -38,11 +38,15 @@ The app should support public bookings, employee day-of operations, admin config
 - Rename "Studio Fee" to a more customer-friendly term such as "Reservation Fee" or "Station Reservation".
 - Reservation fee is due during booking and reserves the guest's station/time; it is not a free hold.
 - Guests can pay the reservation fee only and pay for the art medium in store, or choose/pay for the medium up front.
+- Add discount mechanism for admin-created promo codes, staff-entered discounts, percent-off, fixed-dollar discounts, and experience/add-on-specific eligibility.
+- Track discount usage by code, customer, booking, date range, and source so promos can be measured instead of becoming mystery margin loss.
+- Add guardrails for discounts: expiration dates, usage limits, minimum spend, eligible experiences, stackability rules, and permission requirements for employee-applied discounts.
 - Spin and Splatter project choices: choose/pay in studio, 12x12 canvas, or 16x20 canvas. The 16x20 canvas should cost more than 12x12.
 - Pour Art project choices: choose/pay in studio, 12in bear, unicorn, shoe, or basketball.
 - Tumblers are 20oz, with black or white tumbler choice.
 - Add-ons include glitter, additional paints/colors, and booking insurance.
 - Tumblers include three colors by default, with more colors available as an upgrade.
+- Backlog: dynamic pricing by demand, day/time, season, private-event type, and capacity utilization.
 - Experiences are non-refundable.
 - Booking Insurance allows up to two date/time changes before the reservation time. It remains valid for 6 months, then the reservation fee is forfeited.
 - Final project/add-on prices need to be confirmed before production launch.
@@ -59,12 +63,13 @@ The app should support public bookings, employee day-of operations, admin config
 ## Database & Booking Safety
 
 - Replace local `data/store.json` booking storage with Postgres.
-- Store experiences, add-ons, resources, bookings, customers, payments, and staff users in database tables.
+- Store experiences, add-ons, resources, bookings, customers, payments, discounts, gift cards, gift-card ledger entries, and staff users in database tables.
 - Store availability rules, blackout windows, special hours, resource capacity, and booking buffers in database tables.
 - Add transaction-based booking creation to prevent double bookings.
 - Add resource capacity checks for each time slot.
 - Add booking statuses such as pending, confirmed, cancelled, refunded, completed, and no-show.
 - Add audit timestamps for created, updated, cancelled, and completed bookings.
+- Gift cards should be stored as secure ledger-backed value, not just a plain code in JSON. Store only hashed/redacted redemption codes, maintain immutable balance transactions, and audit every purchase, redemption, adjustment, refund, and void.
 
 ## Payments
 
@@ -77,6 +82,9 @@ The app should support public bookings, employee day-of operations, admin config
 - Add Square webhook signature verification and map paid, failed, refunded, and cancelled payment events back to bookings.
 - Support refunds or partial refunds.
 - Support pay-later/manual payment mode for private events or special cases.
+- Add gift card purchase flow, redemption during checkout, and staff redemption from the employee view.
+- Gift cards should behave like stored value/cash: require database-backed balances, secure code generation, fraud-resistant redemption checks, and clear reconciliation against Square/payment records.
+- Discounts should apply before tax where legally appropriate; gift cards should apply as tender/payment after the taxable total is calculated.
 
 ## Customer Emails & SMS
 
@@ -105,6 +113,8 @@ The app should support public bookings, employee day-of operations, admin config
 - Dashboard with upcoming bookings, revenue, deposits, capacity, and operational alerts.
 - Manage experiences, pricing, descriptions, images, durations, and guest limits.
 - Manage add-ons and upsells.
+- Manage discount codes, eligibility, usage limits, expiration dates, and promotion reporting.
+- Manage gift card lookup, balance, purchase/redemption history, manual adjustments, and voids with admin permission controls.
 - Manage availability rules by day, time window, slot interval, minimum notice, resource, and experience.
 - Block off dates or time ranges.
 - Manage private event holds.
@@ -170,8 +180,11 @@ The app should support public bookings, employee day-of operations, admin config
 - Track abandoned booking flow.
 - Track conversion by experience.
 - Track add-on attach rate.
+- Track discount code usage, campaign source, conversion lift, and margin impact.
+- Track gift card sales, redemption rate, outstanding liability, and breakage.
 - Track traffic source if marketing campaigns are used.
 - Test hero messaging and CTA placement.
+- Backlog: gamified "spin wheel" selector to help undecided visitors choose an offering, collect preference/occasion analytics, and optionally reveal a controlled promo.
 
 ## Near-Term Build Phases
 
