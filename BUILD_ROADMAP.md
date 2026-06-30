@@ -32,6 +32,7 @@ The app should support public bookings, employee day-of operations, admin config
 - Confirmation screen after booking.
 - Email/SMS confirmation to customer.
 - Internal notification to staff.
+- Backlog: Groupon-specific landing page and booking portal for Groupon-only experiences, redemption validation, voucher tracking, and availability rules separate from standard public checkout.
 
 ## Pricing Model
 
@@ -85,6 +86,7 @@ The app should support public bookings, employee day-of operations, admin config
 - Add gift card purchase flow, redemption during checkout, and staff redemption from the employee view.
 - Gift cards should behave like stored value/cash: require database-backed balances, secure code generation, fraud-resistant redemption checks, and clear reconciliation against Square/payment records.
 - Discounts should apply before tax where legally appropriate; gift cards should apply as tender/payment after the taxable total is calculated.
+- Groupon bookings should use dedicated Groupon experience/package records instead of public discount codes, so redemption, restrictions, availability, and reporting stay separate from normal promotions.
 
 ## Customer Emails & SMS
 
@@ -123,6 +125,7 @@ The app should support public bookings, employee day-of operations, admin config
 - View booking details and payment history.
 - Cancel, reschedule, refund, or edit bookings.
 - Content/media management for landing page, gallery, hero media, and experience images.
+- Manage Groupon packages, voucher redemption rules, eligible dates/times, capacity limits, and redemption reporting.
 
 ## Light CRM
 
