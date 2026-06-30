@@ -4,5 +4,7 @@ node_modules/
 *.log
 server*.log
 .tmp-media-photos-*/
+public/assets/uploads/*
+!public/assets/uploads/.gitkeep
 Thumbs.db
 .DS_Store

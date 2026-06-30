@@ -29,7 +29,20 @@ const contentTypes = {
   ".svg": "image/svg+xml",
   ".png": "image/png",
   ".jpg": "image/jpeg",
-  ".mov": "video/quicktime"
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".mov": "video/quicktime",
+  ".mp4": "video/mp4"
+};
+
+const uploadTypes = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+  "video/mp4": ".mp4",
+  "video/quicktime": ".mov"
 };
 
 function readStore() {
@@ -160,7 +173,7 @@ function parseBody(req) {
     let body = "";
     req.on("data", chunk => {
       body += chunk;
-      if (body.length > 1_000_000) {
+      if (body.length > 30_000_000) {
         reject(new Error("Request body too large"));
         req.destroy();
       }
@@ -174,6 +187,65 @@ function parseBody(req) {
       }
     });
   });
+}
+
+function slugify(value) {
+  return String(value || "media")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "media";
+}
+
+function saveUploadedMedia(store, payload) {
+  const title = String(payload.title || "Uploaded media").trim();
+  const placement = String(payload.placement || "gallery").trim();
+  const dataUrl = String(payload.dataUrl || "");
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) throw new Error("Upload a valid media file.");
+
+  const mimeType = match[1].toLowerCase();
+  const extension = uploadTypes[mimeType];
+  if (!extension) throw new Error("Supported uploads: JPG, PNG, WebP, GIF, MP4, and MOV.");
+
+  const bytes = Buffer.from(match[2], "base64");
+  if (!bytes.length) throw new Error("Upload file is empty.");
+  if (bytes.length > 18_000_000) throw new Error("Upload media must be 18 MB or smaller.");
+
+  const uploadsDir = path.join(PUBLIC_DIR, "assets", "uploads");
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  const filename = `${Date.now()}-${slugify(title)}${extension}`;
+  const filePath = path.join(uploadsDir, filename);
+  fs.writeFileSync(filePath, bytes);
+
+  const type = mimeType.startsWith("video/") ? "video" : "image";
+  const media = {
+    id: `upload-${Date.now()}`,
+    type,
+    title,
+    url: `/assets/uploads/${filename}`,
+    source: "admin-upload",
+    uploadedAt: new Date().toISOString()
+  };
+
+  store.site = store.site || {};
+  store.site.hero = store.site.hero || {};
+  store.site.media = Array.isArray(store.site.media) ? store.site.media : [];
+
+  if (placement === "hero-image") {
+    if (type !== "image") throw new Error("Hero image must be an image file.");
+    store.site.hero.imageUrl = media.url;
+  } else if (placement === "hero-video") {
+    if (type !== "video") throw new Error("Hero video must be a video file.");
+    store.site.hero.videoUrl = media.url;
+  } else if (placement === "logo") {
+    if (type !== "image") throw new Error("Logo must be an image file.");
+    store.site.hero.logoUrl = media.url;
+  } else {
+    store.site.media.unshift(media);
+  }
+
+  return media;
 }
 
 function publicStore(store) {
@@ -715,6 +787,17 @@ async function handleApi(req, res, url) {
       discounts: store.discounts,
       holds: activeHolds(store)
     });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/media") {
+    try {
+      const payload = await parseBody(req);
+      const media = saveUploadedMedia(store, payload);
+      writeStore(store);
+      return sendJson(res, 201, { media, config: publicStore(store) });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
   }
 
   if (req.method === "POST" && url.pathname === "/api/discounts/preview") {

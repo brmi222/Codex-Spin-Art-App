@@ -1007,6 +1007,51 @@ function initAdminTabs() {
   });
 }
 
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(reader.result));
+    reader.addEventListener("error", () => reject(new Error("Could not read the selected file.")));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadAdminMedia(event) {
+  event.preventDefault();
+  const fileInput = el("mediaUploadFile");
+  const file = fileInput?.files?.[0];
+  if (!file) {
+    setText("mediaUploadStatus", "Choose a media file first.");
+    return;
+  }
+
+  if (file.size > 18_000_000) {
+    setText("mediaUploadStatus", "Media must be 18 MB or smaller.");
+    return;
+  }
+
+  setText("mediaUploadStatus", "Uploading...");
+  try {
+    const dataUrl = await readFileAsDataUrl(file);
+    const result = await api("/api/admin/media", {
+      method: "POST",
+      body: JSON.stringify({
+        title: el("mediaUploadTitle").value.trim(),
+        placement: el("mediaUploadPlacement").value,
+        dataUrl
+      })
+    });
+    state.config = result.config;
+    hydrateAdminContentFields();
+    renderSharedBrand();
+    renderAdminMedia();
+    event.target.reset();
+    setText("mediaUploadStatus", `${result.media.title} uploaded.`);
+  } catch (error) {
+    setText("mediaUploadStatus", error.message);
+  }
+}
+
 async function saveDiscounts() {
   state.config = await api("/api/config", {
     method: "PUT",
@@ -1787,6 +1832,7 @@ async function initAdmin() {
 
   el("refreshAdmin").addEventListener("click", loadAdmin);
   el("saveContent").addEventListener("click", saveContent);
+  el("mediaUploadForm").addEventListener("submit", uploadAdminMedia);
   el("saveScheduleSettings").addEventListener("click", saveScheduleSettings);
   el("discountForm").addEventListener("submit", addDiscount);
   el("availabilityRuleForm").addEventListener("submit", addAvailabilityRule);

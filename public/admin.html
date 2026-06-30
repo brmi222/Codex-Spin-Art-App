@@ -78,7 +78,30 @@
       <section class="admin-panel" data-admin-panel="media">
         <div class="admin-card">
           <h2>Media library</h2>
-          <p class="admin-help">Review the current hero and gallery assets. Upload, reorder, and experience-specific media controls belong here as the media library grows.</p>
+          <p class="admin-help">Upload media for the gallery, hero image, hero video, or logo. Use web-friendly images and short videos so the booking pages stay fast.</p>
+          <form class="media-upload-form" id="mediaUploadForm">
+            <div class="field-grid">
+              <label>
+                Title
+                <input type="text" id="mediaUploadTitle" placeholder="Painted bear shelf" required>
+              </label>
+              <label>
+                Placement
+                <select id="mediaUploadPlacement">
+                  <option value="gallery">Add to gallery</option>
+                  <option value="hero-image">Replace hero image</option>
+                  <option value="hero-video">Replace hero video</option>
+                  <option value="logo">Replace logo</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              File
+              <input type="file" id="mediaUploadFile" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime" required>
+            </label>
+            <button type="submit">Upload media</button>
+            <p class="status" id="mediaUploadStatus"></p>
+          </form>
           <div class="admin-media-group">
             <h3>Hero</h3>
             <div class="admin-media-grid" id="adminHeroMedia"></div>
