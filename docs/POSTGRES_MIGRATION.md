@@ -43,6 +43,25 @@ npm.cmd run db:seed
 - The Node server uses Postgres automatically when `DATABASE_URL` is present. Without `DATABASE_URL`, it falls back to local `data/store.json`.
 - Current runtime coverage includes config reads, availability reads, public bookings, employee bookings, payments, discounts, gift cards, holds, and admin config/media updates through the existing API shape.
 
+## Staff Access
+
+- Admin and employee pages require staff login when `DATABASE_URL` is present.
+- The first visit to `/login.html` can create the first owner account if no staff users exist.
+- In production, set `AUTH_BOOTSTRAP_TOKEN` before launch if the first-owner setup might be exposed publicly.
+- Owner/admin roles can access the admin console; owner/admin/employee roles can access the employee calendar.
+
+## Square Checkout
+
+- Hosted Square checkout is wired through Square Payment Links when `PAYMENT_PROVIDER=square`.
+- Required environment values:
+  - `SQUARE_ENVIRONMENT`: `sandbox` or `production`
+  - `SQUARE_LOCATION_ID`
+  - `SQUARE_ACCESS_TOKEN`
+  - `SQUARE_WEBHOOK_SIGNATURE_KEY`
+  - `SQUARE_REDIRECT_BASE_URL`
+- Local development can keep `PAYMENT_PROVIDER=mock`.
+- Webhook event verification and payment-status mapping should be finished after live Square credentials are configured.
+
 ## Production Cutover Later
 
 - Export real gift cards, customers, and booking records from the source system.

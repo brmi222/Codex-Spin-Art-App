@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Staff Login | Spin Art Raleigh</title>
+    <link rel="stylesheet" href="/styles.css?v=25">
+  </head>
+  <body data-page="login">
+    <main class="auth-page">
+      <section class="auth-card">
+        <a class="brand" href="/" aria-label="Spin Art Raleigh home">
+          <span class="brand-mark"><img id="navLogo" src="/assets/spin-art-logo.png" alt=""></span>
+          <span>
+            <strong>Spin Art Raleigh</strong>
+            <small>Staff access</small>
+          </span>
+        </a>
+        <div>
+          <p class="eyebrow" id="authEyebrow">Staff login</p>
+          <h1 id="authTitle">Sign in</h1>
+          <p id="authCopy">Use your staff account to access the employee calendar or admin console.</p>
+        </div>
+        <form class="auth-form" id="authForm">
+          <label id="authNameLabel" hidden>
+            Name
+            <input type="text" id="authName" autocomplete="name">
+          </label>
+          <label>
+            Email
+            <input type="email" id="authEmail" autocomplete="email" required>
+          </label>
+          <label>
+            Password
+            <input type="password" id="authPassword" autocomplete="current-password" minlength="10" required>
+          </label>
+          <button type="submit" id="authSubmit">Sign in</button>
+          <p class="status" id="authStatus" role="status"></p>
+        </form>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

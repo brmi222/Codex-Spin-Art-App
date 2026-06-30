@@ -101,8 +101,59 @@ async function api(path, options = {}) {
     ...options
   });
   const payload = await response.json();
+  if (response.status === 401 && !path.startsWith("/api/auth")) {
+    window.location.href = `/login.html?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+    return new Promise(() => {});
+  }
   if (!response.ok) throw new Error(payload.error || "Request failed");
   return payload;
+}
+
+async function initAuth() {
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get("next") || "/employee.html";
+  const status = el("authStatus");
+  const me = await api("/api/auth/me");
+  const isBootstrap = Boolean(me.needsBootstrap);
+
+  if (me.user) {
+    window.location.href = next;
+    return;
+  }
+
+  el("authNameLabel").hidden = !isBootstrap;
+  el("authEyebrow").textContent = isBootstrap ? "Create owner account" : "Staff login";
+  el("authTitle").textContent = isBootstrap ? "Set up staff access" : "Sign in";
+  el("authCopy").textContent = isBootstrap
+    ? "Create the first owner account for the booking app. This setup option disappears after the first account exists."
+    : "Use your staff account to access the employee calendar or admin console.";
+  el("authSubmit").textContent = isBootstrap ? "Create owner account" : "Sign in";
+
+  el("authForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    status.textContent = isBootstrap ? "Creating account..." : "Signing in...";
+    try {
+      const endpoint = isBootstrap ? "/api/auth/bootstrap" : "/api/auth/login";
+      const result = await api(endpoint, {
+        method: "POST",
+        body: JSON.stringify({
+          name: el("authName")?.value || "Owner",
+          email: el("authEmail").value,
+          password: el("authPassword").value
+        })
+      });
+      window.location.href = params.get("next") || result.redirectTo || "/employee.html";
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+}
+
+function initLogout() {
+  el("logoutButton")?.addEventListener("click", async () => {
+    await api("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login.html";
+  });
 }
 
 function choiceGameConfig() {
@@ -2379,11 +2430,17 @@ async function initEmployee() {
 }
 
 async function init() {
+  const page = document.body.dataset.page;
+  if (page === "login") {
+    await initAuth();
+    return;
+  }
+
   state.config = await api("/api/config");
   state.selectedExperienceId = state.config.experiences[0].id;
   renderSharedBrand();
+  initLogout();
 
-  const page = document.body.dataset.page;
   if (page === "occasion") {
     const params = new URLSearchParams(window.location.search);
     const requestedExperience = params.get("experience");

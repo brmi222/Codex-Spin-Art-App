@@ -90,13 +90,29 @@ model Customer {
 }
 
 model StaffUser {
-  id        String    @id @default(cuid())
-  name      String
-  email     String    @unique
-  role      StaffRole @default(EMPLOYEE)
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id           String         @id @default(cuid())
+  name         String
+  email        String         @unique
+  role         StaffRole      @default(EMPLOYEE)
+  passwordHash String?
+  passwordSalt String?
+  isActive     Boolean        @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  sessions     StaffSession[]
+}
+
+model StaffSession {
+  id          String    @id @default(cuid())
+  staffUserId String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  staffUser    StaffUser @relation(fields: [staffUserId], references: [id], onDelete: Cascade)
+
+  @@index([staffUserId])
+  @@index([expiresAt])
 }
 
 model Resource {

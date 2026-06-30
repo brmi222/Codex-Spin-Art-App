@@ -4,6 +4,18 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { readStore, writeStore, USE_DATABASE } = require("./lib/storeRepository");
+const {
+  authenticate,
+  canBootstrap,
+  createSession,
+  createStaffUser,
+  destroySession,
+  getSessionUser,
+  hasRole,
+  publicStaffUser,
+  staffCount
+} = require("./lib/auth");
+const { createSquarePaymentLink, isSquareConfigured } = require("./lib/squarePayments");
 
 const PORT = Number(process.env.PORT || 4280);
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -37,6 +49,19 @@ const contentTypes = {
   ".mp4": "video/mp4"
 };
 
+const ADMIN_API_PATHS = [
+  "/api/admin",
+  "/api/admin/media",
+  "/api/admin/gift-cards",
+  "/api/admin/gift-cards/import",
+  "/api/config"
+];
+
+const EMPLOYEE_API_PATHS = [
+  "/api/employee/day",
+  "/api/employee/bookings"
+];
+
 const uploadTypes = {
   "image/jpeg": ".jpg",
   "image/png": ".png",
@@ -49,6 +74,32 @@ const uploadTypes = {
 function sendJson(res, status, payload) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(payload));
+}
+
+function sendRedirect(res, location) {
+  res.writeHead(302, { Location: location });
+  res.end();
+}
+
+function pathMatches(pathname, protectedPath) {
+  return pathname === protectedPath || pathname.startsWith(`${protectedPath}/`);
+}
+
+function protectedApiRoles(req, url) {
+  if (url.pathname.startsWith("/api/auth")) return null;
+  if (ADMIN_API_PATHS.some(pathname => pathMatches(url.pathname, pathname))) {
+    if (req.method === "GET" && url.pathname === "/api/config") return null;
+    return ["owner", "admin"];
+  }
+  if (EMPLOYEE_API_PATHS.some(pathname => pathMatches(url.pathname, pathname))) return ["owner", "admin", "employee"];
+  if (url.pathname.startsWith("/api/bookings/") && req.method === "PATCH") return ["owner", "admin", "employee"];
+  return null;
+}
+
+function redirectTargetForRole(role) {
+  const normalized = String(role || "").toLowerCase();
+  if (["owner", "admin"].includes(normalized)) return "/admin.html";
+  return "/employee.html";
 }
 
 function splitName(name) {
@@ -760,10 +811,10 @@ function publicPayment(payment) {
   };
 }
 
-function createCheckoutPayment(store, booking, breakdown) {
+async function createCheckoutPayment(store, booking, breakdown, req) {
   const now = new Date().toISOString();
-  const provider = PAYMENT_PROVIDER === "square" && SQUARE_ACCESS_TOKEN ? "square" : "mock";
-  return {
+  const provider = PAYMENT_PROVIDER === "square" && isSquareConfigured() ? "square" : "mock";
+  const payment = {
     id: crypto.randomUUID(),
     bookingId: booking.id,
     provider,
@@ -779,6 +830,13 @@ function createCheckoutPayment(store, booking, breakdown) {
     createdAt: now,
     updatedAt: now
   };
+
+  if (provider === "square") {
+    const origin = `${req.headers["x-forwarded-proto"] || "http"}://${req.headers.host}`;
+    await createSquarePaymentLink({ payment, booking, business: store.business, origin });
+  }
+
+  return payment;
 }
 
 function recordExternalPayment(store, booking, source = "employee_pos", amountOverrideCents = null) {
@@ -914,6 +972,59 @@ function validateEmployeeBookingPayload(store, payload) {
 }
 
 async function handleApi(req, res, url) {
+  if (url.pathname === "/api/auth/me" && req.method === "GET") {
+    const user = USE_DATABASE ? await getSessionUser(req) : null;
+    const count = USE_DATABASE ? await staffCount() : 0;
+    return sendJson(res, 200, {
+      user,
+      needsBootstrap: USE_DATABASE && count === 0
+    });
+  }
+
+  if (url.pathname === "/api/auth/login" && req.method === "POST") {
+    if (!USE_DATABASE) {
+      return sendJson(res, 503, { error: "Staff login requires DATABASE_URL." });
+    }
+    const payload = await parseBody(req);
+    const user = await authenticate(payload.email, payload.password);
+    if (!user) return sendJson(res, 401, { error: "Invalid email or password." });
+    await createSession(res, user);
+    return sendJson(res, 200, { user: publicStaffUser(user), redirectTo: redirectTargetForRole(user.role) });
+  }
+
+  if (url.pathname === "/api/auth/bootstrap" && req.method === "POST") {
+    if (!USE_DATABASE) {
+      return sendJson(res, 503, { error: "Staff login requires DATABASE_URL." });
+    }
+    const payload = await parseBody(req);
+    if (await staffCount()) return sendJson(res, 409, { error: "Staff account already exists." });
+    if (!canBootstrap(req, payload)) return sendJson(res, 403, { error: "Bootstrap is not enabled." });
+    if (!payload.email || !payload.password || String(payload.password).length < 10) {
+      return sendJson(res, 400, { error: "Create an owner account with an email and a password of at least 10 characters." });
+    }
+    const user = await createStaffUser({
+      name: payload.name || "Owner",
+      email: payload.email,
+      password: payload.password,
+      role: "OWNER"
+    });
+    await createSession(res, user);
+    return sendJson(res, 201, { user: publicStaffUser(user), redirectTo: "/admin.html" });
+  }
+
+  if (url.pathname === "/api/auth/logout" && req.method === "POST") {
+    if (USE_DATABASE) await destroySession(req, res);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  const requiredRoles = protectedApiRoles(req, url);
+  if (requiredRoles) {
+    const user = USE_DATABASE ? await getSessionUser(req) : null;
+    if (!hasRole(user, requiredRoles)) {
+      return sendJson(res, user ? 403 : 401, { error: user ? "You do not have access to this area." : "Please sign in." });
+    }
+  }
+
   const store = await readStore();
   await cleanupHolds(store);
 
@@ -1233,7 +1344,7 @@ async function handleApi(req, res, url) {
       recordGiftCardRedemption(store, booking, giftCardResult.giftCard, breakdown.giftCardCents, "public_booking");
     }
     if (breakdown.paymentDueCents > 0) {
-      payment = createCheckoutPayment(store, booking, breakdown);
+      payment = await createCheckoutPayment(store, booking, breakdown, req);
       booking.paymentIds.push(payment.id);
       store.payments.push(payment);
     }
@@ -1387,10 +1498,18 @@ async function handleApi(req, res, url) {
   return sendJson(res, 404, { error: "Not found." });
 }
 
-function serveStatic(req, res, url) {
+async function serveStatic(req, res, url) {
   let pathname = decodeURIComponent(url.pathname);
   if (pathname === "/") pathname = "/index.html";
   if (!path.extname(pathname)) pathname = `${pathname}.html`;
+
+  if (USE_DATABASE && ["/admin.html", "/employee.html"].includes(pathname)) {
+    const user = await getSessionUser(req);
+    const requiredRoles = pathname === "/admin.html" ? ["owner", "admin"] : ["owner", "admin", "employee"];
+    if (!hasRole(user, requiredRoles)) {
+      return sendRedirect(res, `/login.html?next=${encodeURIComponent(pathname)}`);
+    }
+  }
 
   const relativePath = pathname.replace(/^\/+/, "");
   const filePath = path.normalize(path.join(PUBLIC_DIR, relativePath));
@@ -1415,7 +1534,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname.startsWith("/api/")) {
       await handleApi(req, res, url);
     } else {
-      serveStatic(req, res, url);
+      await serveStatic(req, res, url);
     }
   } catch (error) {
     sendJson(res, 500, { error: error.message || "Unexpected server error." });
