@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Admin | Spin Art Raleigh</title>
-    <link rel="stylesheet" href="/styles.css?v=20">
+    <link rel="stylesheet" href="/styles.css?v=21">
   </head>
   <body data-page="admin">
     <header class="topbar admin-topbar">
@@ -32,11 +32,22 @@
         <div class="admin-stats" id="adminStats"></div>
       </section>
 
-      <section class="admin-grid">
+      <nav class="admin-tabs" aria-label="Admin sections">
+        <button type="button" class="active" data-admin-tab="bookings">Bookings</button>
+        <button type="button" data-admin-tab="content">Content</button>
+        <button type="button" data-admin-tab="media">Media</button>
+        <button type="button" data-admin-tab="discounts">Discounts</button>
+        <button type="button" data-admin-tab="schedule">Schedule</button>
+      </nav>
+
+      <section class="admin-panel active" data-admin-panel="bookings">
         <div class="admin-card">
           <h2>Upcoming bookings</h2>
           <div class="booking-list" id="adminBookings"></div>
         </div>
+      </section>
+
+      <section class="admin-panel" data-admin-panel="content">
         <div class="admin-card">
           <h2>Editable site content</h2>
           <label>
@@ -64,7 +75,22 @@
         </div>
       </section>
 
-      <section class="admin-grid admin-grid-wide">
+      <section class="admin-panel" data-admin-panel="media">
+        <div class="admin-card">
+          <h2>Media library</h2>
+          <p class="admin-help">Review the current hero and gallery assets. Upload, reorder, and experience-specific media controls belong here as the media library grows.</p>
+          <div class="admin-media-group">
+            <h3>Hero</h3>
+            <div class="admin-media-grid" id="adminHeroMedia"></div>
+          </div>
+          <div class="admin-media-group">
+            <h3>Gallery</h3>
+            <div class="admin-media-grid" id="adminGalleryMedia"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="admin-panel" data-admin-panel="discounts">
         <div class="admin-card">
           <h2>Discounts</h2>
           <p class="admin-help">Create promo codes for campaigns, staff-approved offers, or controlled test discounts.</p>
@@ -115,7 +141,7 @@
         </div>
       </section>
 
-      <section class="admin-grid admin-grid-wide">
+      <section class="admin-panel admin-panel-grid" data-admin-panel="schedule">
         <div class="admin-card">
           <h2>Scheduling</h2>
           <p class="admin-help">Configure resources, weekly availability, minimum notice, slot spacing, and blackout times.</p>

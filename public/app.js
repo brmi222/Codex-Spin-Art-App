@@ -943,6 +943,70 @@ function renderDiscountAdmin() {
   });
 }
 
+function mediaPreview(item) {
+  if (!item?.url) return "";
+  return item.type === "video"
+    ? `<video src="${item.url}" muted playsinline></video>`
+    : `<img src="${item.url}" alt="">`;
+}
+
+function renderAdminMedia() {
+  const heroTarget = el("adminHeroMedia");
+  const galleryTarget = el("adminGalleryMedia");
+  if (!heroTarget || !galleryTarget) return;
+
+  const hero = state.config.site?.hero || {};
+  const heroItems = [
+    hero.imageUrl ? { type: "image", title: "Hero image", url: hero.imageUrl } : null,
+    hero.videoUrl ? { type: "video", title: "Hero video", url: hero.videoUrl } : null,
+    hero.logoUrl ? { type: "image", title: "Logo", url: hero.logoUrl } : null
+  ].filter(Boolean);
+
+  heroTarget.innerHTML = heroItems.length ? heroItems.map(item => `
+    <article class="admin-media-tile">
+      ${mediaPreview(item)}
+      <div>
+        <strong>${item.title}</strong>
+        <span>${item.url}</span>
+      </div>
+    </article>
+  `).join("") : "<p>No hero media configured.</p>";
+
+  const gallery = state.config.site?.media || [];
+  galleryTarget.innerHTML = gallery.length ? gallery.map(item => `
+    <article class="admin-media-tile">
+      ${mediaPreview(item)}
+      <div>
+        <strong>${item.title || item.id}</strong>
+        <span>${item.type} | ${item.url}</span>
+      </div>
+    </article>
+  `).join("") : "<p>No gallery media configured.</p>";
+}
+
+function initAdminTabs() {
+  const tabs = [...document.querySelectorAll("[data-admin-tab]")];
+  const panels = [...document.querySelectorAll("[data-admin-panel]")];
+  if (!tabs.length || !panels.length) return;
+
+  const activate = (id) => {
+    tabs.forEach(tab => {
+      const active = tab.dataset.adminTab === id;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    panels.forEach(panel => {
+      panel.classList.toggle("active", panel.dataset.adminPanel === id);
+    });
+  };
+
+  tabs.forEach(tab => {
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-selected", tab.classList.contains("active") ? "true" : "false");
+    tab.addEventListener("click", () => activate(tab.dataset.adminTab));
+  });
+}
+
 async function saveDiscounts() {
   state.config = await api("/api/config", {
     method: "PUT",
@@ -999,6 +1063,7 @@ async function saveContent() {
 
   renderSharedBrand();
   hydrateAdminContentFields();
+  renderAdminMedia();
   setText("contentStatus", "Saved.");
 }
 
@@ -1712,11 +1777,13 @@ async function initBooking() {
 }
 
 async function initAdmin() {
+  initAdminTabs();
   hydrateAdminContentFields();
   hydrateScheduleForms();
   hydrateDiscountForm();
   await loadAdmin();
   renderScheduleAdmin();
+  renderAdminMedia();
 
   el("refreshAdmin").addEventListener("click", loadAdmin);
   el("saveContent").addEventListener("click", saveContent);
