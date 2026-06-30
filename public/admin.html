@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Admin | Spin Art Raleigh</title>
-    <link rel="stylesheet" href="/styles.css?v=21">
+    <link rel="stylesheet" href="/styles.css?v=24">
   </head>
   <body data-page="admin">
     <header class="topbar admin-topbar">
@@ -36,6 +36,7 @@
         <button type="button" class="active" data-admin-tab="bookings">Bookings</button>
         <button type="button" data-admin-tab="content">Content</button>
         <button type="button" data-admin-tab="media">Media</button>
+        <button type="button" data-admin-tab="game">Game</button>
         <button type="button" data-admin-tab="discounts">Discounts</button>
         <button type="button" data-admin-tab="gift-cards">Gift Cards</button>
         <button type="button" data-admin-tab="schedule">Schedule</button>
@@ -111,6 +112,78 @@
             <h3>Gallery</h3>
             <div class="admin-media-grid" id="adminGalleryMedia"></div>
           </div>
+        </div>
+      </section>
+
+      <section class="admin-panel" data-admin-panel="game">
+        <div class="admin-card">
+          <h2>Help me choose game</h2>
+          <p class="admin-help">Configure seasonal wheel slices and hidden rewards. Experience slices use the public experience images automatically.</p>
+          <form class="schedule-form" id="gameSeasonalForm">
+            <h3>Add seasonal slice</h3>
+            <div class="field-grid">
+              <label>
+                Name
+                <input type="text" id="gameSeasonalName" placeholder="Pumpkins" required>
+              </label>
+              <label>
+                Image URL
+                <input type="url" id="gameSeasonalImage" placeholder="/assets/uploads/pumpkins.jpg" required>
+              </label>
+              <label>
+                Booking URL
+                <input type="text" id="gameSeasonalUrl" placeholder="/book.html?experience=pour-art">
+              </label>
+              <label>
+                Weight
+                <input type="number" id="gameSeasonalWeight" min="1" step="1" value="1">
+              </label>
+            </div>
+            <button type="submit">Add seasonal item</button>
+          </form>
+          <form class="schedule-form" id="gameRewardForm">
+            <h3>Add hidden reward</h3>
+            <div class="field-grid">
+              <label>
+                Applies to
+                <select id="gameRewardSlice">
+                  <option value="">Any slice</option>
+                </select>
+              </label>
+              <label>
+                Type
+                <select id="gameRewardType">
+                  <option value="discount">Discount</option>
+                  <option value="addon">Free add-on</option>
+                  <option value="message">Message only</option>
+                </select>
+              </label>
+              <label>
+                Amount / add-on
+                <input type="text" id="gameRewardValue" placeholder="10% or glitter finish">
+              </label>
+              <label>
+                Frequency %
+                <input type="number" id="gameRewardFrequency" min="1" max="100" step="1" value="15" required>
+              </label>
+            </div>
+            <label>
+              Customer-facing reward text
+              <input type="text" id="gameRewardDescription" placeholder="10% off your reservation fee when staff verifies this spin." required>
+            </label>
+            <button type="submit">Add reward</button>
+          </form>
+          <div class="admin-game-columns">
+            <div>
+              <h3>Seasonal slices</h3>
+              <div class="schedule-list" id="gameSeasonalList"></div>
+            </div>
+            <div>
+              <h3>Hidden rewards</h3>
+              <div class="schedule-list" id="gameRewardList"></div>
+            </div>
+          </div>
+          <p class="status" id="gameAdminStatus"></p>
         </div>
       </section>
 

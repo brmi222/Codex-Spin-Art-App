@@ -74,7 +74,24 @@ const weekdayOptions = [
   ["6", "Sat"]
 ];
 
-const choiceWheelColors = ["#f04f7f", "#16a3a8", "#f6c445", "#5867c7", "#ff4f12", "#8fe8ea"];
+const defaultChoiceRewards = [
+  {
+    id: "reward-reservation-10",
+    type: "discount",
+    value: "10%",
+    frequency: 15,
+    sliceId: "",
+    description: "10% off your reservation fee when staff verifies this spin."
+  },
+  {
+    id: "reward-free-addon",
+    type: "addon",
+    value: "staff pick",
+    frequency: 14,
+    sliceId: "",
+    description: "Free staff-picked add-on with this booking."
+  }
+];
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -86,23 +103,65 @@ async function api(path, options = {}) {
   return payload;
 }
 
-function choiceRewardForExperience(experience) {
-  const roll = Math.random();
-  if (roll < 0.18) {
-    return {
-      type: "discount",
-      title: "Surprise reward",
-      description: "10% off your reservation fee when staff verifies this spin."
-    };
+function choiceGameConfig() {
+  state.config.site.choiceGame = state.config.site.choiceGame || {};
+  state.config.site.choiceGame.seasonalItems = Array.isArray(state.config.site.choiceGame.seasonalItems)
+    ? state.config.site.choiceGame.seasonalItems
+    : [];
+  state.config.site.choiceGame.rewards = Array.isArray(state.config.site.choiceGame.rewards)
+    ? state.config.site.choiceGame.rewards
+    : defaultChoiceRewards;
+  return state.config.site.choiceGame;
+}
+
+function choiceSlices() {
+  const seasonal = choiceGameConfig().seasonalItems.map(item => ({
+    id: item.id,
+    type: "seasonal",
+    name: item.name,
+    imageUrl: item.imageUrl || state.config.site.hero.imageUrl,
+    bookingUrl: item.bookingUrl || "/book.html",
+    weight: Math.max(1, Number(item.weight || 1))
+  }));
+  const experiences = state.config.experiences
+    .filter(experience => experience.isPublic !== false)
+    .map(experience => ({
+      id: experience.id,
+      type: "experience",
+      name: experience.name,
+      imageUrl: experience.imageUrl,
+      bookingUrl: `/book.html?experience=${encodeURIComponent(experience.id)}`,
+      experience,
+      weight: Math.max(1, Number(experience.choiceWeight || 1))
+    }));
+  return [...experiences, ...seasonal];
+}
+
+function weightedChoice(items) {
+  const total = items.reduce((sum, item) => sum + Math.max(1, Number(item.weight || 1)), 0);
+  let cursor = Math.random() * total;
+  for (const item of items) {
+    cursor -= Math.max(1, Number(item.weight || 1));
+    if (cursor <= 0) return item;
   }
-  if (roll < 0.36) {
-    const addOns = addOnsForExperience(experience);
-    const addon = addOns.length ? addOns[Math.floor(Math.random() * addOns.length)] : null;
-    return {
-      type: "addon",
-      title: "Surprise reward",
-      description: addon ? `Free ${addon.name.toLowerCase()} with this booking.` : "Free mini pour bear keychain with this booking."
-    };
+  return items[items.length - 1];
+}
+
+function choiceRewardForSlice(slice) {
+  const rewards = choiceGameConfig().rewards.filter(reward => (
+    reward.isActive !== false &&
+    (!reward.sliceId || reward.sliceId === slice.id)
+  ));
+  for (const reward of rewards) {
+    if (Math.random() * 100 < Math.max(0, Number(reward.frequency || 0))) {
+      return {
+        type: reward.type,
+        title: "Surprise reward",
+        value: reward.value || "",
+        rewardId: reward.id,
+        description: reward.description || "Show this reward to staff when you arrive."
+      };
+    }
   }
   return {
     type: "none",
@@ -111,14 +170,28 @@ function choiceRewardForExperience(experience) {
   };
 }
 
-function saveChoiceReward(experience, reward) {
+function saveChoiceReward(slice, reward) {
+  const linkedExperienceId = slice.type === "experience"
+    ? slice.id
+    : experienceIdFromBookingUrl(slice.bookingUrl);
   const payload = {
-    experienceId: experience.id,
-    experienceName: experience.name,
+    experienceId: linkedExperienceId,
+    sliceId: slice.id,
+    experienceName: slice.name,
+    bookingUrl: slice.bookingUrl,
     reward,
     createdAt: new Date().toISOString()
   };
   sessionStorage.setItem("spinArtChoiceReward", JSON.stringify(payload));
+}
+
+function experienceIdFromBookingUrl(url) {
+  try {
+    const parsed = new URL(url || "", window.location.origin);
+    return parsed.searchParams.get("experience") || "";
+  } catch {
+    return "";
+  }
 }
 
 function loadChoiceReward() {
@@ -349,22 +422,49 @@ function renderExperienceCards() {
   `).join("");
 }
 
-function renderChoiceWheel(options) {
-  const wheel = el("choiceWheel");
-  if (!wheel || !options.length) return;
+function polarToCartesian(cx, cy, radius, angleDegrees) {
+  const angleRadians = (angleDegrees - 90) * Math.PI / 180;
+  return {
+    x: cx + radius * Math.cos(angleRadians),
+    y: cy + radius * Math.sin(angleRadians)
+  };
+}
 
-  const slice = 360 / options.length;
-  const gradient = options.map((experience, index) => {
+function slicePath(startAngle, endAngle) {
+  const start = polarToCartesian(50, 50, 49, endAngle);
+  const end = polarToCartesian(50, 50, 49, startAngle);
+  const largeArc = endAngle - startAngle <= 180 ? 0 : 1;
+  return `M 50 50 L ${start.x.toFixed(3)} ${start.y.toFixed(3)} A 49 49 0 ${largeArc} 0 ${end.x.toFixed(3)} ${end.y.toFixed(3)} Z`;
+}
+
+function renderChoiceWheel(slices) {
+  const wheel = el("choiceWheel");
+  if (!wheel || !slices.length) return;
+
+  const slice = 360 / slices.length;
+  const defs = slices.map((item, index) => `
+    <pattern id="choicePattern${index}" patternUnits="objectBoundingBox" width="1" height="1">
+      <image href="${item.imageUrl}" width="100" height="100" preserveAspectRatio="xMidYMid slice"></image>
+    </pattern>
+  `).join("");
+  const paths = slices.map((item, index) => {
     const start = index * slice;
     const end = (index + 1) * slice;
-    return `${choiceWheelColors[index % choiceWheelColors.length]} ${start}deg ${end}deg`;
-  }).join(", ");
-
-  wheel.style.background = `conic-gradient(${gradient})`;
-  wheel.innerHTML = options.map((experience, index) => {
-    const rotation = index * slice + slice / 2;
-    return `<span style="--label-angle:${rotation}deg">${experience.name}</span>`;
+    const labelPoint = polarToCartesian(50, 50, 32, start + slice / 2);
+    return `
+      <path d="${slicePath(start, end)}" fill="url(#choicePattern${index})"></path>
+      <path d="${slicePath(start, end)}" class="choice-wheel-shade"></path>
+      <text x="${labelPoint.x.toFixed(2)}" y="${labelPoint.y.toFixed(2)}" transform="rotate(${(start + slice / 2).toFixed(2)} ${labelPoint.x.toFixed(2)} ${labelPoint.y.toFixed(2)})">${item.name}</text>
+    `;
   }).join("");
+
+  wheel.innerHTML = `
+    <svg viewBox="0 0 100 100" role="img" aria-label="Experience picker wheel">
+      <defs>${defs}</defs>
+      ${paths}
+      <circle cx="50" cy="50" r="10" class="choice-wheel-hub"></circle>
+    </svg>
+  `;
 }
 
 function initChoiceGame() {
@@ -377,8 +477,8 @@ function initChoiceGame() {
   const wheel = el("choiceWheel");
   if (!button || !modal || !spin || !wheel || !result || !bookLink) return;
 
-  const options = state.config.experiences.filter(experience => experience.isPublic !== false);
-  renderChoiceWheel(options);
+  const slices = choiceSlices();
+  renderChoiceWheel(slices);
   let rotation = 0;
   let spinning = false;
 
@@ -393,28 +493,30 @@ function initChoiceGame() {
   });
 
   spin.addEventListener("click", () => {
-    if (spinning || !options.length) return;
+    if (spinning || !slices.length) return;
     spinning = true;
     spin.disabled = true;
     bookLink.hidden = true;
     result.innerHTML = `<strong>Spinning...</strong><span>Color is making an executive decision.</span>`;
 
-    const index = Math.floor(Math.random() * options.length);
-    const slice = 360 / options.length;
-    const targetAngle = index * slice + slice / 2;
+    const selected = weightedChoice(slices);
+    const index = slices.findIndex(item => item.id === selected.id);
+    const slice = 360 / slices.length;
+    const margin = Math.min(10, slice * 0.22);
+    const randomInsideSlice = margin + Math.random() * Math.max(1, slice - margin * 2);
+    const targetAngle = index * slice + randomInsideSlice;
     const pointerAngle = 270;
     rotation += 1440 + pointerAngle - targetAngle;
     wheel.style.transform = `rotate(${rotation}deg)`;
 
     window.setTimeout(() => {
-      const experience = options[index];
-      const reward = choiceRewardForExperience(experience);
-      saveChoiceReward(experience, reward);
+      const reward = choiceRewardForSlice(selected);
+      saveChoiceReward(selected, reward);
       result.innerHTML = `
-        <strong>${experience.name}</strong>
+        <strong>${selected.name}</strong>
         <span>${reward.description}</span>
       `;
-      bookLink.href = `/book.html?experience=${encodeURIComponent(experience.id)}`;
+      bookLink.href = selected.bookingUrl;
       bookLink.hidden = false;
       spin.disabled = false;
       spin.textContent = "Spin again";
@@ -1099,6 +1201,7 @@ async function loadAdmin() {
   });
   renderDiscountAdmin();
   renderGiftCardAdmin();
+  renderChoiceGameAdmin();
 }
 
 function hydrateDiscountForm() {
@@ -1334,6 +1437,97 @@ async function importGiftCards(event) {
   } catch (error) {
     setText("giftCardAdminStatus", error.message);
   }
+}
+
+function hydrateChoiceGameAdmin() {
+  const target = el("gameRewardSlice");
+  if (!target) return;
+  const slices = choiceSlices();
+  target.innerHTML = [
+    `<option value="">Any slice</option>`,
+    ...slices.map(slice => `<option value="${slice.id}">${slice.name}</option>`)
+  ].join("");
+}
+
+function renderChoiceGameAdmin() {
+  const seasonalTarget = el("gameSeasonalList");
+  const rewardTarget = el("gameRewardList");
+  if (!seasonalTarget || !rewardTarget) return;
+  const config = choiceGameConfig();
+  seasonalTarget.innerHTML = config.seasonalItems.length ? config.seasonalItems.map(item => `
+    <article class="schedule-row">
+      <div>
+        <strong>${item.name}</strong>
+        <span>${item.imageUrl} | weight ${Number(item.weight || 1)}</span>
+      </div>
+      <button type="button" data-delete-seasonal="${item.id}">Delete</button>
+    </article>
+  `).join("") : "<p>No seasonal slices yet.</p>";
+
+  rewardTarget.innerHTML = config.rewards.length ? config.rewards.map(reward => `
+    <article class="schedule-row">
+      <div>
+        <strong>${reward.description}</strong>
+        <span>${reward.type}${reward.value ? ` | ${reward.value}` : ""} | ${Number(reward.frequency || 0)}% chance${reward.sliceId ? ` | ${choiceSlices().find(slice => slice.id === reward.sliceId)?.name || reward.sliceId}` : " | any slice"}</span>
+      </div>
+      <button type="button" data-delete-reward="${reward.id}">Delete</button>
+    </article>
+  `).join("") : "<p>No rewards configured.</p>";
+
+  seasonalTarget.querySelectorAll("[data-delete-seasonal]").forEach(button => {
+    button.addEventListener("click", async () => {
+      config.seasonalItems = config.seasonalItems.filter(item => item.id !== button.dataset.deleteSeasonal);
+      await saveChoiceGameConfig();
+    });
+  });
+  rewardTarget.querySelectorAll("[data-delete-reward]").forEach(button => {
+    button.addEventListener("click", async () => {
+      config.rewards = config.rewards.filter(item => item.id !== button.dataset.deleteReward);
+      await saveChoiceGameConfig();
+    });
+  });
+  hydrateChoiceGameAdmin();
+}
+
+async function saveChoiceGameConfig() {
+  state.config = await api("/api/config", {
+    method: "PUT",
+    body: JSON.stringify({ site: state.config.site })
+  });
+  renderChoiceGameAdmin();
+  setText("gameAdminStatus", "Game settings saved.");
+}
+
+async function addSeasonalChoiceItem(event) {
+  event.preventDefault();
+  const config = choiceGameConfig();
+  config.seasonalItems.push({
+    id: `seasonal-${Date.now()}`,
+    name: el("gameSeasonalName").value.trim(),
+    imageUrl: el("gameSeasonalImage").value.trim(),
+    bookingUrl: el("gameSeasonalUrl").value.trim() || "/book.html",
+    weight: Number(el("gameSeasonalWeight").value || 1),
+    isActive: true
+  });
+  event.target.reset();
+  await saveChoiceGameConfig();
+}
+
+async function addChoiceReward(event) {
+  event.preventDefault();
+  const config = choiceGameConfig();
+  config.rewards.push({
+    id: `reward-${Date.now()}`,
+    sliceId: el("gameRewardSlice").value,
+    type: el("gameRewardType").value,
+    value: el("gameRewardValue").value.trim(),
+    frequency: Number(el("gameRewardFrequency").value || 0),
+    description: el("gameRewardDescription").value.trim(),
+    isActive: true
+  });
+  event.target.reset();
+  hydrateChoiceGameAdmin();
+  await saveChoiceGameConfig();
 }
 
 async function saveContent() {
@@ -2131,6 +2325,7 @@ async function initAdmin() {
   hydrateAdminContentFields();
   hydrateScheduleForms();
   hydrateDiscountForm();
+  hydrateChoiceGameAdmin();
   await loadAdmin();
   renderScheduleAdmin();
   renderAdminMedia();
@@ -2142,6 +2337,8 @@ async function initAdmin() {
   el("discountForm").addEventListener("submit", addDiscount);
   el("giftCardForm").addEventListener("submit", addGiftCard);
   el("giftCardImportForm").addEventListener("submit", importGiftCards);
+  el("gameSeasonalForm").addEventListener("submit", addSeasonalChoiceItem);
+  el("gameRewardForm").addEventListener("submit", addChoiceReward);
   el("availabilityRuleForm").addEventListener("submit", addAvailabilityRule);
   el("blackoutForm").addEventListener("submit", addBlackout);
 }
