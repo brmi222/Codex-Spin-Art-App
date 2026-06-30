@@ -4,9 +4,21 @@
   "private": true,
   "description": "Configurable public booking app for Spin Art Raleigh.",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio"
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.11.1",
+    "prisma": "^6.11.1"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }

@@ -1,0 +1,452 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  IN_PROGRESS
+  DRYING
+  READY_FOR_PICKUP
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIALLY_PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  VOIDED
+}
+
+enum PaymentProvider {
+  MOCK
+  SQUARE
+  EXTERNAL_POS
+  GIFT_CARD
+  MANUAL
+}
+
+enum GiftCardStatus {
+  ACTIVE
+  INACTIVE
+  REDEEMED
+  VOID
+}
+
+enum DiscountType {
+  PERCENT
+  FIXED
+  ADD_ON
+}
+
+enum StaffRole {
+  OWNER
+  ADMIN
+  EMPLOYEE
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum ChatbotLeadStatus {
+  NEW
+  QUALIFIED
+  CONTACTED
+  BOOKED
+  LOST
+  ARCHIVED
+}
+
+model Customer {
+  id        String        @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  notes     String?
+  tags      String[]      @default([])
+  metadata  Json?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  bookings  Booking[]
+  leads     ChatbotLead[]
+
+  @@index([email])
+  @@index([phone])
+}
+
+model StaffUser {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  role      StaffRole @default(EMPLOYEE)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Resource {
+  id                String             @id
+  name              String
+  calendarLabel     String?
+  capacity          Int                @default(1)
+  capacityMode      String             @default("spots")
+  capacityUnit      String?
+  isExclusive       Boolean            @default(false)
+  isEmployeeVisible Boolean            @default(true)
+  displayOrder      Int                @default(0)
+  metadata          Json?
+  experiences       Experience[]
+  availabilityRules AvailabilityRule[]
+  blackouts         Blackout[]
+  bookings          Booking[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model Experience {
+  id                  String             @id
+  resourceId          String
+  name                String
+  slug                String             @unique
+  shortDescription    String?
+  description         String?
+  durationMinutes     Int                @default(60)
+  bufferMinutes       Int                @default(0)
+  minGuests           Int                @default(1)
+  maxGuests           Int                @default(1)
+  reservationFeeCents Int                @default(0)
+  basePriceCents      Int                @default(0)
+  imageUrl            String?
+  isPublic            Boolean            @default(true)
+  isPrivateEligible   Boolean            @default(false)
+  displayOrder        Int                @default(0)
+  projects            Json?
+  includedItems       Json?
+  policies            Json?
+  metadata            Json?
+  resource            Resource           @relation(fields: [resourceId], references: [id])
+  addOns              ExperienceAddOn[]
+  bookings            Booking[]
+  availabilityRules   AvailabilityRule[]
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([resourceId])
+}
+
+model AddOn {
+  id          String            @id
+  name        String
+  description String?
+  priceCents  Int               @default(0)
+  isActive    Boolean           @default(true)
+  metadata    Json?
+  experiences ExperienceAddOn[]
+  bookings    BookingAddOn[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model ExperienceAddOn {
+  experienceId String
+  addOnId      String
+  experience   Experience @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+  addOn        AddOn      @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+
+  @@id([experienceId, addOnId])
+}
+
+model AvailabilityRule {
+  id           String      @id @default(cuid())
+  resourceId   String
+  experienceId String?
+  dayOfWeek    Int
+  startTime    String
+  endTime      String
+  slotInterval Int         @default(60)
+  minNoticeMin Int         @default(60)
+  isActive     Boolean     @default(true)
+  resource     Resource    @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  experience   Experience? @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+
+  @@index([resourceId, dayOfWeek])
+  @@index([experienceId])
+}
+
+model Blackout {
+  id         String    @id @default(cuid())
+  resourceId String?
+  startsAt   DateTime
+  endsAt     DateTime
+  reason     String?
+  resource   Resource? @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+
+  @@index([resourceId, startsAt, endsAt])
+}
+
+model Booking {
+  id                  String                @id
+  customerId          String?
+  experienceId        String
+  resourceId          String
+  status              BookingStatus         @default(PENDING)
+  paymentStatus       PaymentStatus         @default(PENDING)
+  startsAt            DateTime
+  endsAt              DateTime
+  guestCount          Int
+  capacityUnits       Int                   @default(1)
+  occasion            String?
+  projectId           String?
+  projectName         String?
+  paymentMode         String?
+  subtotalCents       Int                   @default(0)
+  discountCents       Int                   @default(0)
+  taxCents            Int                   @default(0)
+  totalCents          Int                   @default(0)
+  amountDueNowCents   Int                   @default(0)
+  balanceDueCents     Int                   @default(0)
+  giftCardCents       Int                   @default(0)
+  waiverStatus        String                @default("not_sent")
+  notes               String?
+  internalNotes       String?
+  metadata            Json?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  cancelledAt         DateTime?
+  completedAt         DateTime?
+  customer            Customer?             @relation(fields: [customerId], references: [id])
+  experience          Experience            @relation(fields: [experienceId], references: [id])
+  resource            Resource              @relation(fields: [resourceId], references: [id])
+  participants        BookingParticipant[]
+  addOns              BookingAddOn[]
+  payments            Payment[]
+  waivers             Waiver[]
+  discountRedemptions DiscountRedemption[]
+  giftCardLedger      GiftCardLedgerEntry[]
+
+  @@index([startsAt, endsAt])
+  @@index([resourceId, startsAt])
+  @@index([experienceId])
+  @@index([customerId])
+}
+
+model BookingParticipant {
+  id           String  @id @default(cuid())
+  bookingId    String
+  name         String
+  age          Int?
+  isMinor      Boolean @default(false)
+  guardianName String?
+  waiverSigned Boolean @default(false)
+  booking      Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+}
+
+model BookingAddOn {
+  id         String  @id @default(cuid())
+  bookingId  String
+  addOnId    String
+  name       String
+  quantity   Int     @default(1)
+  unitCents  Int     @default(0)
+  totalCents Int     @default(0)
+  booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  addOn      AddOn   @relation(fields: [addOnId], references: [id])
+
+  @@index([bookingId])
+  @@index([addOnId])
+}
+
+model Payment {
+  id                  String          @id
+  bookingId           String?
+  provider            PaymentProvider @default(MOCK)
+  status              PaymentStatus   @default(PENDING)
+  amountCents         Int
+  taxCents            Int             @default(0)
+  providerPaymentId   String?
+  providerCheckoutUrl String?
+  metadata            Json?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  booking             Booking?        @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId])
+  @@index([providerPaymentId])
+}
+
+model Discount {
+  id                    String               @id
+  code                  String               @unique
+  name                  String
+  type                  DiscountType
+  value                 Int
+  status                String               @default("active")
+  startsAt              DateTime?
+  expiresAt             DateTime?
+  usageLimit            Int?
+  perCustomerLimit      Int?
+  minimumSubtotalCents  Int?
+  eligibleExperienceIds String[]             @default([])
+  eligibleAddOnIds      String[]             @default([])
+  stackable             Boolean              @default(false)
+  metadata              Json?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  redemptions           DiscountRedemption[]
+}
+
+model DiscountRedemption {
+  id          String   @id @default(cuid())
+  discountId  String
+  bookingId   String?
+  customerId  String?
+  amountCents Int
+  source      String?
+  createdAt   DateTime @default(now())
+  discount    Discount @relation(fields: [discountId], references: [id])
+  booking     Booking? @relation(fields: [bookingId], references: [id])
+
+  @@index([discountId])
+  @@index([bookingId])
+  @@index([customerId])
+}
+
+model GiftCard {
+  id            String                @id
+  codeHash      String                @unique
+  codeLast4     String
+  displayCode   String?
+  status        GiftCardStatus        @default(ACTIVE)
+  issuedCents   Int
+  balanceCents  Int
+  holderName    String?
+  holderEmail   String?
+  holderPhone   String?
+  note          String?
+  expiresAt     DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  ledgerEntries GiftCardLedgerEntry[]
+}
+
+model GiftCardLedgerEntry {
+  id           String   @id @default(cuid())
+  giftCardId   String
+  bookingId    String?
+  type         String
+  amountCents  Int
+  balanceCents Int
+  source       String?
+  note         String?
+  createdAt    DateTime @default(now())
+  giftCard     GiftCard @relation(fields: [giftCardId], references: [id])
+  booking      Booking? @relation(fields: [bookingId], references: [id])
+
+  @@index([giftCardId])
+  @@index([bookingId])
+}
+
+model Waiver {
+  id               String   @id @default(cuid())
+  bookingId        String
+  signerName       String
+  signerEmail      String?
+  signerPhone      String?
+  signerAddress    String?
+  participantNames String[] @default([])
+  photoRelease     Boolean  @default(false)
+  acceptedTerms    Boolean  @default(false)
+  signedAt         DateTime @default(now())
+  version          String   @default("v1")
+  metadata         Json?
+  booking          Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+}
+
+model MediaAsset {
+  id          String    @id
+  type        MediaType
+  title       String
+  url         String
+  placement   String?
+  source      String?
+  driveFileId String?
+  isActive    Boolean   @default(true)
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model ChatbotLead {
+  id             String            @id @default(cuid())
+  customerId     String?
+  status         ChatbotLeadStatus @default(NEW)
+  eventType      String?
+  preferredDates String?
+  guestCount     Int?
+  budgetRange    String?
+  organization   String?
+  sourcePage     String?
+  summary        String?
+  nextStep       String?
+  metadata       Json?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  customer       Customer?         @relation(fields: [customerId], references: [id])
+  messages       ChatbotMessage[]
+
+  @@index([status])
+  @@index([customerId])
+}
+
+model ChatbotMessage {
+  id        String      @id @default(cuid())
+  leadId    String
+  role      String
+  content   String
+  metadata  Json?
+  createdAt DateTime    @default(now())
+  lead      ChatbotLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorType  String?
+  action     String
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+}
