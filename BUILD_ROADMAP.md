@@ -95,6 +95,7 @@ The app should support public bookings, employee day-of operations, admin config
 - Post-visit follow-up.
 - Review request.
 - Rebooking or promo campaigns later.
+- AI chatbot lead follow-up and private-event inquiry notifications.
 
 ## Employee View
 
@@ -133,6 +134,17 @@ The app should support public bookings, employee day-of operations, admin config
 - Private event inquiry pipeline.
 - Email list/export for marketing.
 - Basic segmentation for birthdays, corporate/team building, repeat customers, and abandoned inquiries.
+
+## AI Chatbot & Event Concierge
+
+- Add an AI chatbot focused on party, birthday, corporate, team-building, and private event inquiries.
+- Capture event type, preferred dates, guest count, budget range, contact info, organization/company, and special requests.
+- Recommend suitable experiences, private booking options, add-ons, and next steps.
+- Create lightweight CRM leads from chatbot conversations.
+- Route high-intent event leads to staff/admin for follow-up.
+- Support handoff to booking flow when the event is eligible for instant booking.
+- Store chatbot transcripts, lead status, source page, and follow-up history for reporting.
+- Add admin controls for chatbot tone, qualifying questions, event packages, escalation rules, and enabled pages.
 
 ## Private & Group Events
 
@@ -182,6 +194,7 @@ The app should support public bookings, employee day-of operations, admin config
 - Track add-on attach rate.
 - Track discount code usage, campaign source, conversion lift, and margin impact.
 - Track gift card sales, redemption rate, outstanding liability, and breakage.
+- Track AI chatbot lead volume, qualified event leads, handoff rate, and booked revenue.
 - Track traffic source if marketing campaigns are used.
 - Test hero messaging and CTA placement.
 - Backlog: gamified "spin wheel" selector to help undecided visitors choose an offering, collect preference/occasion analytics, and optionally reveal a controlled promo.
