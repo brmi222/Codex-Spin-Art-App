@@ -6,11 +6,14 @@ This project is moving from local JSON storage to Postgres. The first step is fr
 
 - Project URL: `https://hrhqfevhmxumwxrsehtl.supabase.co`
 - Keep the database password, service role key, and full connection string in `.env` only.
+- The current repo has the initial Prisma migration SQL prepared in `prisma/migrations/20260630211000_init/migration.sql`.
+- The Supabase CLI is optional for this app. It is not currently installed on this machine, so Prisma migrations are the primary path.
 
 ## Local Setup
 
 1. Copy `.env.example` to `.env`.
 2. Replace the placeholder password in `DATABASE_URL`.
+   - Example format: `postgresql://postgres:REAL_PASSWORD@db.hrhqfevhmxumwxrsehtl.supabase.co:5432/postgres?schema=public`
 3. Generate Prisma client:
 
 ```powershell
