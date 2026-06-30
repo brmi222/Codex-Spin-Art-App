@@ -42,6 +42,7 @@ function readStore() {
     ...(store.settings || {})
   };
   store.payments = Array.isArray(store.payments) ? store.payments : [];
+  store.discounts = Array.isArray(store.discounts) ? store.discounts : [];
   return store;
 }
 
@@ -411,6 +412,65 @@ function money(cents) {
   return Math.round(Number(cents || 0));
 }
 
+function formatMoney(cents) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(money(cents) / 100);
+}
+
+function normalizeDiscountCode(code) {
+  return String(code || "").trim().toUpperCase().replace(/\s+/g, "");
+}
+
+function publicDiscount(discount) {
+  if (!discount) return null;
+  return {
+    id: discount.id,
+    code: discount.code,
+    name: discount.name,
+    type: discount.type,
+    valuePercent: discount.valuePercent || 0,
+    valueCents: discount.valueCents || 0,
+    discountCents: discount.discountCents || 0
+  };
+}
+
+function discountAmountForSubtotal(discount, subtotalCents) {
+  if (!discount) return 0;
+  const subtotal = money(subtotalCents);
+  if (discount.type === "percent") {
+    return Math.min(subtotal, Math.round(subtotal * Number(discount.valuePercent || 0) / 100));
+  }
+  return Math.min(subtotal, money(discount.valueCents));
+}
+
+function validateDiscount(store, code, experience, subtotalCents) {
+  const normalizedCode = normalizeDiscountCode(code);
+  if (!normalizedCode) return { discount: null };
+
+  const discount = store.discounts.find(item => normalizeDiscountCode(item.code) === normalizedCode);
+  if (!discount || discount.isActive === false) return { error: "Discount code is not valid." };
+
+  const now = Date.now();
+  if (discount.startsAt && new Date(discount.startsAt).getTime() > now) {
+    return { error: "Discount code is not active yet." };
+  }
+  if (discount.expiresAt && new Date(discount.expiresAt).getTime() < now) {
+    return { error: "Discount code has expired." };
+  }
+  if (Array.isArray(discount.experienceIds) && discount.experienceIds.length && !discount.experienceIds.includes(experience.id)) {
+    return { error: "Discount code is not available for this experience." };
+  }
+  if (Number(discount.minimumSubtotalCents || 0) > money(subtotalCents)) {
+    return { error: `Discount requires at least ${formatMoney(discount.minimumSubtotalCents)} before tax.` };
+  }
+  if (discount.maxRedemptions && Number(discount.usedCount || 0) >= Number(discount.maxRedemptions)) {
+    return { error: "Discount code has reached its usage limit." };
+  }
+
+  const discountCents = discountAmountForSubtotal(discount, subtotalCents);
+  if (discountCents <= 0) return { error: "Discount code does not apply to this order." };
+  return { discount: { ...discount, code: normalizedCode, discountCents } };
+}
+
 function calculateTotal(store, experience, guestCount, selectedAddOnIds = [], projectId = "", addOnItems = []) {
   const resource = getResource(store, experience.resourceId);
   const billableGuests = billableGuestCount(resource, experience, guestCount);
@@ -440,23 +500,27 @@ function calculateTax(store, subtotalCents) {
   return Math.round(money(subtotalCents) * rate / 10_000);
 }
 
-function pricingBreakdown(store, experience, guestCount, selectedAddOnIds = [], projectId = "", paymentMode = "reservation_fee", addOnItems = []) {
+function pricingBreakdown(store, experience, guestCount, selectedAddOnIds = [], projectId = "", paymentMode = "reservation_fee", addOnItems = [], discount = null) {
   const subtotalCents = calculateTotal(store, experience, guestCount, selectedAddOnIds, projectId, addOnItems);
-  const taxCents = calculateTax(store, subtotalCents);
-  const totalCents = subtotalCents + taxCents;
+  const discountCents = discountAmountForSubtotal(discount, subtotalCents);
+  const discountedSubtotalCents = Math.max(0, subtotalCents - discountCents);
+  const taxCents = calculateTax(store, discountedSubtotalCents);
+  const totalCents = discountedSubtotalCents + taxCents;
   const resource = getResource(store, experience.resourceId);
   const billableGuests = billableGuestCount(resource, experience, guestCount);
   const reservationFeeSubtotalCents = experience.pricingType === "per_guest"
     ? money(experience.depositCents) * billableGuests
     : money(experience.depositCents);
   const amountDueNowSubtotalCents = paymentMode === "pay_full"
-    ? subtotalCents
-    : Math.min(reservationFeeSubtotalCents, subtotalCents);
+    ? discountedSubtotalCents
+    : Math.min(reservationFeeSubtotalCents, discountedSubtotalCents);
   const amountDueNowTaxCents = calculateTax(store, amountDueNowSubtotalCents);
   const amountDueNowCents = amountDueNowSubtotalCents + amountDueNowTaxCents;
 
   return {
     subtotalCents,
+    discountCents,
+    discountedSubtotalCents,
     taxCents,
     totalCents,
     reservationFeeSubtotalCents,
@@ -648,8 +712,26 @@ async function handleApi(req, res, url) {
       ...publicStore(store),
       bookings: store.bookings.sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt)),
       payments: store.payments,
+      discounts: store.discounts,
       holds: activeHolds(store)
     });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/discounts/preview") {
+    const payload = await parseBody(req);
+    const experience = getExperience(store, payload.experienceId);
+    if (!experience || !experience.isPublic) return sendJson(res, 400, { error: "Choose a valid experience." });
+    const guestCount = Number(payload.guestCount || experience.minGuests);
+    const addOnIds = Array.isArray(payload.addOnIds) ? payload.addOnIds : [];
+    const addOnItems = Array.isArray(payload.addOnItems) ? payload.addOnItems : [];
+    const projectOptions = experience.projectOptions || [];
+    const projectId = String(payload.projectId || projectOptions[0]?.id || "").trim();
+    const paymentMode = payload.paymentMode === "pay_full" ? "pay_full" : "reservation_fee";
+    const subtotalCents = calculateTotal(store, experience, guestCount, addOnIds, projectId, addOnItems);
+    const { discount, error } = validateDiscount(store, payload.discountCode, experience, subtotalCents);
+    if (error) return sendJson(res, 400, { error });
+    const breakdown = pricingBreakdown(store, experience, guestCount, addOnIds, projectId, paymentMode, addOnItems, discount);
+    return sendJson(res, 200, { breakdown, discount: publicDiscount(discount) });
   }
 
   if (req.method === "GET" && url.pathname === "/api/availability") {
@@ -717,7 +799,10 @@ async function handleApi(req, res, url) {
       }))
       .filter(item => item.id && item.quantity > 0);
     const addOnIds = addOnItems.map(item => item.id);
-    const breakdown = pricingBreakdown(store, experience, guestCount, addOnIds, projectId, "reservation_fee", addOnItems);
+    const subtotalCents = calculateTotal(store, experience, guestCount, addOnIds, projectId, addOnItems);
+    const discountResult = validateDiscount(store, payload.discountCode, experience, subtotalCents);
+    if (discountResult.error) return sendJson(res, 400, { error: discountResult.error });
+    const breakdown = pricingBreakdown(store, experience, guestCount, addOnIds, projectId, "reservation_fee", addOnItems, discountResult.discount);
     const isPaidInPos = payload.paymentStatus === "paid";
     const now = new Date().toISOString();
 
@@ -739,6 +824,8 @@ async function handleApi(req, res, url) {
       occasion: String(payload.occasion || "").trim(),
       occasionId: "",
       subtotalCents: breakdown.subtotalCents,
+      discountCents: breakdown.discountCents,
+      discount: publicDiscount(discountResult.discount),
       taxCents: breakdown.taxCents,
       totalCents: breakdown.totalCents,
       reservationFeeCents: breakdown.reservationFeeSubtotalCents,
@@ -763,6 +850,10 @@ async function handleApi(req, res, url) {
     };
 
     if (isPaidInPos) recordExternalPayment(store, booking);
+    if (discountResult.discount) {
+      const storedDiscount = store.discounts.find(item => item.id === discountResult.discount.id);
+      if (storedDiscount) storedDiscount.usedCount = Number(storedDiscount.usedCount || 0) + 1;
+    }
     store.bookings.push(booking);
     writeStore(store);
     return sendJson(res, 201, { booking });
@@ -783,7 +874,10 @@ async function handleApi(req, res, url) {
     const project = projectOptions.find(item => item.id === projectId);
     const projectName = String(payload.projectName || project?.name || "").trim();
     const paymentMode = payload.paymentMode === "pay_full" ? "pay_full" : "reservation_fee";
-    const breakdown = pricingBreakdown(store, experience, guestCount, addOnIds, projectId, paymentMode);
+    const subtotalCents = calculateTotal(store, experience, guestCount, addOnIds, projectId);
+    const discountResult = validateDiscount(store, payload.discountCode, experience, subtotalCents);
+    if (discountResult.error) return sendJson(res, 400, { error: discountResult.error });
+    const breakdown = pricingBreakdown(store, experience, guestCount, addOnIds, projectId, paymentMode, [], discountResult.discount);
 
     const acceptedAt = new Date().toISOString();
     const booking = {
@@ -803,6 +897,8 @@ async function handleApi(req, res, url) {
       occasion: String(payload.occasion || "").trim(),
       occasionId: String(payload.occasionId || "").trim(),
       subtotalCents: breakdown.subtotalCents,
+      discountCents: breakdown.discountCents,
+      discount: publicDiscount(discountResult.discount),
       taxCents: breakdown.taxCents,
       totalCents: breakdown.totalCents,
       reservationFeeCents: breakdown.reservationFeeSubtotalCents,
@@ -836,6 +932,11 @@ async function handleApi(req, res, url) {
       payment = createCheckoutPayment(store, booking, breakdown);
       booking.paymentIds.push(payment.id);
       store.payments.push(payment);
+    }
+
+    if (discountResult.discount) {
+      const storedDiscount = store.discounts.find(item => item.id === discountResult.discount.id);
+      if (storedDiscount) storedDiscount.usedCount = Number(storedDiscount.usedCount || 0) + 1;
     }
 
     store.bookings.push(booking);
@@ -972,6 +1073,7 @@ async function handleApi(req, res, url) {
     };
     if (Array.isArray(payload.experiences)) store.experiences = payload.experiences;
     if (Array.isArray(payload.addOns)) store.addOns = payload.addOns;
+    if (Array.isArray(payload.discounts)) store.discounts = payload.discounts;
     if (payload.policies) store.policies = { ...store.policies, ...payload.policies };
     writeStore(store);
     return sendJson(res, 200, publicStore(store));

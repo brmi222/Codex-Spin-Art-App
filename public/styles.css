@@ -1139,6 +1139,32 @@ textarea {
   font-weight: 800;
 }
 
+.promo-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+  margin: 0.25rem 0 1rem;
+}
+
+.promo-row label {
+  margin: 0;
+}
+
+.promo-row button {
+  min-height: 44px;
+}
+
+.promo-row .status {
+  grid-column: 1 / -1;
+  margin: -0.25rem 0 0;
+}
+
+.employee-promo-row {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .payment-panel {
   display: flex;
   align-items: center;

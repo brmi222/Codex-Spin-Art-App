@@ -66,6 +66,57 @@
 
       <section class="admin-grid admin-grid-wide">
         <div class="admin-card">
+          <h2>Discounts</h2>
+          <p class="admin-help">Create promo codes for campaigns, staff-approved offers, or controlled test discounts.</p>
+          <form class="schedule-form" id="discountForm">
+            <div class="field-grid">
+              <label>
+                Code
+                <input type="text" id="discountCode" placeholder="RAINYDAY" required>
+              </label>
+              <label>
+                Name
+                <input type="text" id="discountName" placeholder="Rainy day promo" required>
+              </label>
+              <label>
+                Type
+                <select id="discountType">
+                  <option value="percent">Percent off</option>
+                  <option value="fixed">Dollar off</option>
+                </select>
+              </label>
+              <label>
+                Amount
+                <input type="number" id="discountAmount" min="1" step="1" value="10" required>
+              </label>
+              <label>
+                Minimum subtotal
+                <input type="number" id="discountMinimum" min="0" step="1" value="0">
+              </label>
+              <label>
+                Usage limit
+                <input type="number" id="discountMaxUses" min="0" step="1" placeholder="No limit">
+              </label>
+              <label>
+                Expires
+                <input type="date" id="discountExpires">
+              </label>
+              <label>
+                Experience
+                <select id="discountExperience">
+                  <option value="">All experiences</option>
+                </select>
+              </label>
+            </div>
+            <button type="submit">Add discount</button>
+          </form>
+          <div class="schedule-list" id="discountList"></div>
+          <p class="status" id="discountAdminStatus"></p>
+        </div>
+      </section>
+
+      <section class="admin-grid admin-grid-wide">
+        <div class="admin-card">
           <h2>Scheduling</h2>
           <p class="admin-help">Configure resources, weekly availability, minimum notice, slot spacing, and blackout times.</p>
           <div class="schedule-settings">

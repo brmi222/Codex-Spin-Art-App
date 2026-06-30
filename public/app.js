@@ -1,7 +1,9 @@
 const state = {
   config: null,
   selectedExperienceId: null,
-  selectedOccasionId: null
+  selectedOccasionId: null,
+  appliedDiscount: null,
+  employeeDiscount: null
 };
 
 const dollars = cents => new Intl.NumberFormat("en-US", {
@@ -370,15 +372,28 @@ function calculateTax(subtotalCents) {
   return Math.round((Number(subtotalCents) || 0) * rate / 10000);
 }
 
+function discountAmountForSubtotal(discount, subtotalCents) {
+  if (!discount) return 0;
+  const subtotal = Number(subtotalCents || 0);
+  if (discount.type === "percent") {
+    return Math.min(subtotal, Math.round(subtotal * Number(discount.valuePercent || 0) / 100));
+  }
+  return Math.min(subtotal, Number(discount.valueCents || 0));
+}
+
 function pricingBreakdown() {
   const subtotal = calculateTotal();
-  const tax = calculateTax(subtotal);
-  const total = subtotal + tax;
+  const discount = discountAmountForSubtotal(state.appliedDiscount, subtotal);
+  const discountedSubtotal = Math.max(0, subtotal - discount);
+  const tax = calculateTax(discountedSubtotal);
+  const total = discountedSubtotal + tax;
   const dueNowSubtotal = amountDueNowSubtotal();
   const dueNowTax = calculateTax(dueNowSubtotal);
   const dueNow = dueNowSubtotal + dueNowTax;
   return {
     subtotal,
+    discount,
+    discountedSubtotal,
     tax,
     total,
     dueNowSubtotal,
@@ -400,16 +415,59 @@ function reservationFeeTotal() {
 }
 
 function amountDueNowSubtotal() {
+  const subtotal = calculateTotal();
+  const discount = discountAmountForSubtotal(state.appliedDiscount, subtotal);
+  const discountedSubtotal = Math.max(0, subtotal - discount);
   return el("paymentMode")?.value === "pay_full"
-    ? calculateTotal()
-    : reservationFeeTotal();
+    ? discountedSubtotal
+    : Math.min(reservationFeeTotal(), discountedSubtotal);
 }
 
 function updatePrice() {
   const pricePill = el("pricePill");
   if (!pricePill || !selectedExperience()) return;
   const breakdown = pricingBreakdown();
-  pricePill.textContent = `${dollars(breakdown.dueNow)} due now incl. tax | ${dollars(breakdown.total)} total`;
+  pricePill.textContent = `${dollars(breakdown.dueNow)} due now incl. tax | ${dollars(breakdown.total)} total${breakdown.discount ? ` | ${dollars(breakdown.discount)} discount` : ""}`;
+}
+
+async function applyDiscountCode() {
+  const input = el("discountCodeInput");
+  const code = input?.value.trim();
+  if (!code) {
+    state.appliedDiscount = null;
+    setText("discountStatus", "");
+    updatePrice();
+    return;
+  }
+
+  const experience = selectedExperience();
+  try {
+    const result = await api("/api/discounts/preview", {
+      method: "POST",
+      body: JSON.stringify({
+        discountCode: code,
+        experienceId: experience.id,
+        guestCount: Number(el("guestInput").value),
+        addOnIds: selectedAddOns(),
+        projectId: selectedProject(),
+        paymentMode: el("paymentMode").value
+      })
+    });
+    state.appliedDiscount = result.discount;
+    setText("discountStatus", `${result.discount.code} applied: ${dollars(result.breakdown.discountCents)} off.`);
+    updatePrice();
+  } catch (error) {
+    state.appliedDiscount = null;
+    setText("discountStatus", error.message);
+    updatePrice();
+  }
+}
+
+function clearAppliedDiscount() {
+  if (!state.appliedDiscount) return;
+  state.appliedDiscount = null;
+  setText("discountStatus", "");
+  updatePrice();
 }
 
 function renderExperiencePicker() {
@@ -437,6 +495,7 @@ function renderExperiencePicker() {
       renderWaiverFields();
       renderBookingIntro();
       syncGuestBounds();
+      clearAppliedDiscount();
       await loadAvailability();
       updatePrice();
     });
@@ -499,7 +558,10 @@ function renderProjectOptions() {
   `).join("") : "<p>Project options will be confirmed with the studio.</p>";
 
   document.querySelectorAll("[data-project]").forEach(input => {
-    input.addEventListener("change", updatePrice);
+    input.addEventListener("change", () => {
+      clearAppliedDiscount();
+      updatePrice();
+    });
   });
 }
 
@@ -517,7 +579,10 @@ function renderAddOns() {
   `).join("") : "<p>No add-ons for this experience.</p>";
 
   document.querySelectorAll("[data-addon]").forEach(input => {
-    input.addEventListener("change", updatePrice);
+    input.addEventListener("change", () => {
+      clearAppliedDiscount();
+      updatePrice();
+    });
   });
 }
 
@@ -666,6 +731,7 @@ async function submitBooking(event) {
       guestCount: Number(el("guestInput").value),
       addOnIds: selectedAddOns(),
       projectId: selectedProject(),
+      discountCode: state.appliedDiscount?.code || el("discountCodeInput")?.value.trim() || "",
       projectName: document.querySelector("[data-project]:checked")?.closest("label")?.querySelector("strong")?.textContent || "",
       occasion: selectedOccasion()?.label || (el("occasionInput")?.value === "other" ? "Other" : ""),
       occasionId: state.selectedOccasionId || el("occasionInput")?.value || "",
@@ -708,6 +774,9 @@ async function submitBooking(event) {
     syncGuestBounds();
     renderProjectOptions();
     renderAddOns();
+    state.appliedDiscount = null;
+    if (el("discountCodeInput")) el("discountCodeInput").value = "";
+    setText("discountStatus", "");
     renderWaiverFields();
     await loadAvailability();
   } catch (error) {
@@ -731,7 +800,7 @@ function renderPaymentPanel(payment, booking) {
     <div>
       <p class="eyebrow">Checkout</p>
       <h3>${dollars(payment.amountCents)} due now</h3>
-      <p>${dollars(payment.subtotalCents)} subtotal + ${dollars(payment.taxCents)} tax. ${booking.balanceCents ? `${dollars(booking.balanceCents)} remaining balance can be paid in store.` : "Paid in full after checkout."}</p>
+      <p>${dollars(payment.subtotalCents)} subtotal + ${dollars(payment.taxCents)} tax. ${booking.discount ? `${booking.discount.code} saved ${dollars(booking.discountCents || booking.discount.discountCents || 0)}. ` : ""}${booking.balanceCents ? `${dollars(booking.balanceCents)} remaining balance can be paid in store.` : "Paid in full after checkout."}</p>
     </div>
     ${isMock
       ? `<button type="button" data-mock-pay="${payment.id}">Complete mock payment</button>`
@@ -777,6 +846,7 @@ function hydrateAdminContentFields() {
 
 async function loadAdmin() {
   const admin = await api("/api/admin");
+  state.config.discounts = admin.discounts || [];
   const bookings = admin.bookings;
   const payments = admin.payments || [];
   const target = el("adminBookings");
@@ -809,6 +879,7 @@ async function loadAdmin() {
         <small>${shortDateTime(booking.startsAt)} | ${booking.guestCount} guests | ${dollars(booking.totalCents)} total</small><br>
         ${booking.projectName ? `<small>Project: ${booking.projectName}</small><br>` : ""}
         ${booking.occasion ? `<small>Occasion: ${booking.occasion}</small><br>` : ""}
+        ${booking.discount ? `<small>Discount: ${booking.discount.code} (${dollars(booking.discountCents || booking.discount.discountCents || 0)})</small><br>` : ""}
         <small>Payment: ${(booking.paymentStatus || booking.status).replaceAll("_", " ")} | Due now: ${dollars(booking.amountDueNowCents || booking.depositCents)} | Tax: ${dollars(booking.taxCents || 0)} | Balance: ${dollars(booking.balanceCents)}</small><br>
         <small>Waiver: ${booking.waiverStatus.replaceAll("_", " ")}</small>
       </div>
@@ -832,6 +903,79 @@ async function loadAdmin() {
       await loadAdmin();
     });
   });
+  renderDiscountAdmin();
+}
+
+function hydrateDiscountForm() {
+  const target = el("discountExperience");
+  if (!target) return;
+  target.innerHTML = [
+    `<option value="">All experiences</option>`,
+    ...state.config.experiences.map(experience => `<option value="${experience.id}">${experience.name}</option>`)
+  ].join("");
+}
+
+function discountValueLabel(discount) {
+  return discount.type === "percent"
+    ? `${Number(discount.valuePercent || 0)}% off`
+    : `${dollars(discount.valueCents)} off`;
+}
+
+function renderDiscountAdmin() {
+  const target = el("discountList");
+  if (!target) return;
+  const discounts = state.config.discounts || [];
+  target.innerHTML = discounts.length ? discounts.map(discount => `
+    <article class="schedule-row">
+      <div>
+        <strong>${discount.code} | ${discount.name}</strong>
+        <span>${discountValueLabel(discount)} | ${discount.isActive === false ? "inactive" : "active"} | used ${Number(discount.usedCount || 0)}${discount.maxRedemptions ? `/${discount.maxRedemptions}` : ""}${discount.expiresAt ? ` | expires ${discount.expiresAt.slice(0, 10)}` : ""}${discount.experienceIds?.length ? ` | ${discount.experienceIds.map(experienceName).join(", ")}` : " | all experiences"}</span>
+      </div>
+      <button type="button" data-delete-discount="${discount.id}">Delete</button>
+    </article>
+  `).join("") : "<p>No discounts yet.</p>";
+
+  target.querySelectorAll("[data-delete-discount]").forEach(button => {
+    button.addEventListener("click", async () => {
+      state.config.discounts = state.config.discounts.filter(discount => discount.id !== button.dataset.deleteDiscount);
+      await saveDiscounts();
+    });
+  });
+}
+
+async function saveDiscounts() {
+  state.config = await api("/api/config", {
+    method: "PUT",
+    body: JSON.stringify({ discounts: state.config.discounts || [] })
+  });
+  await loadAdmin();
+  setText("discountAdminStatus", "Discounts saved.");
+}
+
+async function addDiscount(event) {
+  event.preventDefault();
+  const type = el("discountType").value;
+  const amount = Number(el("discountAmount").value || 0);
+  const experienceId = el("discountExperience").value;
+  state.config.discounts = state.config.discounts || [];
+  state.config.discounts.push({
+    id: `discount-${Date.now()}`,
+    code: el("discountCode").value.trim().toUpperCase().replace(/\s+/g, ""),
+    name: el("discountName").value.trim(),
+    type,
+    valuePercent: type === "percent" ? amount : 0,
+    valueCents: type === "fixed" ? Math.round(amount * 100) : 0,
+    minimumSubtotalCents: Math.round(Number(el("discountMinimum").value || 0) * 100),
+    maxRedemptions: Number(el("discountMaxUses").value || 0) || null,
+    usedCount: 0,
+    expiresAt: el("discountExpires").value ? `${el("discountExpires").value}T23:59:59` : "",
+    experienceIds: experienceId ? [experienceId] : [],
+    isActive: true,
+    createdAt: new Date().toISOString()
+  });
+  event.target.reset();
+  hydrateDiscountForm();
+  await saveDiscounts();
 }
 
 async function saveContent() {
@@ -996,11 +1140,15 @@ function employeeEstimateBreakdown() {
     return sum + (addOn ? Number(addOn.priceCents || 0) * item.quantity : 0);
   }, 0);
   const subtotal = base + (projectTotal * projectMultiplier) + addOnTotal;
-  const tax = calculateTax(subtotal);
+  const discount = discountAmountForSubtotal(state.employeeDiscount, subtotal);
+  const discountedSubtotal = Math.max(0, subtotal - discount);
+  const tax = calculateTax(discountedSubtotal);
   return {
     subtotal,
+    discount,
+    discountedSubtotal,
     tax,
-    total: subtotal + tax
+    total: discountedSubtotal + tax
   };
 }
 
@@ -1015,10 +1163,50 @@ function updateEmployeePaymentSummary() {
   const isPaidNow = paymentInput.value === "paid";
   target.innerHTML = `
     <strong>${dollars(breakdown.total)} total</strong>
-    <span>${dollars(breakdown.subtotal)} subtotal + ${dollars(breakdown.tax)} tax${addOnCount ? ` | ${addOnCount} add-on${addOnCount === 1 ? "" : "s"}` : ""}</span>
+    <span>${dollars(breakdown.subtotal)} subtotal${breakdown.discount ? ` - ${dollars(breakdown.discount)} discount` : ""} + ${dollars(breakdown.tax)} tax${addOnCount ? ` | ${addOnCount} add-on${addOnCount === 1 ? "" : "s"}` : ""}</span>
     <span>${isPaidNow ? "Collect payment in POS now. This booking will be marked paid." : "Booking will stay open with a balance due."}</span>
   `;
   submitButton.textContent = isPaidNow ? `Take payment & add ${dollars(breakdown.total)}` : "Add to schedule";
+}
+
+async function applyEmployeeDiscountCode() {
+  const input = el("employeeDiscountCodeInput");
+  const code = input?.value.trim();
+  if (!code) {
+    state.employeeDiscount = null;
+    setText("employeeDiscountStatus", "");
+    updateEmployeePaymentSummary();
+    return;
+  }
+
+  const experience = employeeFormExperience();
+  try {
+    const result = await api("/api/discounts/preview", {
+      method: "POST",
+      body: JSON.stringify({
+        discountCode: code,
+        experienceId: experience.id,
+        guestCount: Number(el("employeeGuestInput").value),
+        addOnItems: selectedEmployeeAddOnItems(),
+        projectId: (experience.projectOptions || [])[0]?.id || "",
+        paymentMode: "pay_full"
+      })
+    });
+    state.employeeDiscount = result.discount;
+    setText("employeeDiscountStatus", `${result.discount.code} applied: ${dollars(result.breakdown.discountCents)} off.`);
+    updateEmployeePaymentSummary();
+  } catch (error) {
+    state.employeeDiscount = null;
+    setText("employeeDiscountStatus", error.message);
+    updateEmployeePaymentSummary();
+  }
+}
+
+function clearEmployeeDiscount() {
+  if (!state.employeeDiscount) return;
+  state.employeeDiscount = null;
+  setText("employeeDiscountStatus", "");
+  updateEmployeePaymentSummary();
 }
 
 function renderEmployeeAddOns() {
@@ -1040,6 +1228,7 @@ function renderEmployeeAddOns() {
 
   target.querySelectorAll("[data-employee-addon-qty]").forEach(input => {
     input.addEventListener("input", () => {
+      clearEmployeeDiscount();
       const count = selectedEmployeeAddOnItems().reduce((sum, item) => sum + item.quantity, 0);
       if (summary) summary.textContent = count ? `${count} selected` : "None selected";
       updateEmployeePaymentSummary();
@@ -1307,6 +1496,7 @@ function renderEmployeeBookingDetail(date, row, resource, cell, booking) {
 
     <div class="employee-total-grid">
       <div><span>Subtotal</span><strong>${dollars(subtotal)}</strong></div>
+      ${booking.discount ? `<div><span>Discount</span><strong>-${dollars(booking.discountCents || booking.discount.discountCents || 0)}</strong></div>` : ""}
       <div><span>Tax</span><strong>${dollars(tax)}</strong></div>
       <div><span>Total</span><strong>${dollars(total)}</strong></div>
       <div><span>Paid</span><strong>${dollars(paid)}</strong></div>
@@ -1400,6 +1590,9 @@ async function submitEmployeeAppointment(event) {
     };
     const addOnItems = selectedEmployeeAddOnItems();
     if (addOnItems.length) payload.addOnItems = addOnItems;
+    if (state.employeeDiscount?.code || el("employeeDiscountCodeInput")?.value.trim()) {
+      payload.discountCode = state.employeeDiscount?.code || el("employeeDiscountCodeInput").value.trim();
+    }
     if (el("employeePaymentInput")?.value === "paid") {
       payload.paymentStatus = "paid";
     }
@@ -1414,6 +1607,9 @@ async function submitEmployeeAppointment(event) {
     setDefaultEmployeeDate();
     hydrateEmployeeBookingForm();
     renderEmployeeAddOns();
+    state.employeeDiscount = null;
+    if (el("employeeDiscountCodeInput")) el("employeeDiscountCodeInput").value = "";
+    setText("employeeDiscountStatus", "");
     await loadEmployeeAppointmentAvailability();
     await loadEmployeeDay();
   } catch (error) {
@@ -1496,10 +1692,18 @@ async function initBooking() {
 
   el("dateInput").addEventListener("change", loadAvailability);
   el("guestInput").addEventListener("input", () => {
+    clearAppliedDiscount();
     updatePrice();
     renderWaiverFields();
   });
-  el("paymentMode").addEventListener("change", updatePrice);
+  el("paymentMode").addEventListener("change", () => {
+    clearAppliedDiscount();
+    updatePrice();
+  });
+  el("applyDiscountButton").addEventListener("click", applyDiscountCode);
+  el("discountCodeInput").addEventListener("input", () => {
+    if (state.appliedDiscount) clearAppliedDiscount();
+  });
   el("occasionInput").addEventListener("change", () => {
     state.selectedOccasionId = el("occasionInput").value;
     renderBookingIntro();
@@ -1510,12 +1714,14 @@ async function initBooking() {
 async function initAdmin() {
   hydrateAdminContentFields();
   hydrateScheduleForms();
+  hydrateDiscountForm();
   await loadAdmin();
   renderScheduleAdmin();
 
   el("refreshAdmin").addEventListener("click", loadAdmin);
   el("saveContent").addEventListener("click", saveContent);
   el("saveScheduleSettings").addEventListener("click", saveScheduleSettings);
+  el("discountForm").addEventListener("submit", addDiscount);
   el("availabilityRuleForm").addEventListener("submit", addAvailabilityRule);
   el("blackoutForm").addEventListener("submit", addBlackout);
 }
@@ -1528,15 +1734,21 @@ async function initEmployee() {
   el("employeeDate").addEventListener("change", loadEmployeeDay);
   el("employeeAppointmentDate").addEventListener("change", loadEmployeeAppointmentAvailability);
   el("employeeExperienceInput").addEventListener("change", async () => {
+    clearEmployeeDiscount();
     syncEmployeeGuestBounds();
     renderEmployeeAddOns();
     await loadEmployeeAppointmentAvailability();
   });
   el("employeeGuestInput").addEventListener("input", () => {
+    clearEmployeeDiscount();
     syncEmployeeGuestBounds();
     updateEmployeePaymentSummary();
   });
   el("employeePaymentInput").addEventListener("change", updateEmployeePaymentSummary);
+  el("employeeApplyDiscountButton").addEventListener("click", applyEmployeeDiscountCode);
+  el("employeeDiscountCodeInput").addEventListener("input", () => {
+    if (state.employeeDiscount) clearEmployeeDiscount();
+  });
   el("employeeBookingForm").addEventListener("submit", submitEmployeeAppointment);
   el("refreshEmployee").addEventListener("click", loadEmployeeDay);
 }
