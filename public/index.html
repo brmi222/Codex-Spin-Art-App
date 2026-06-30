@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Spin Art Raleigh</title>
-    <link rel="stylesheet" href="/styles.css?v=20">
+    <link rel="stylesheet" href="/styles.css?v=23">
   </head>
   <body data-page="landing">
     <header class="topbar">
@@ -42,12 +42,36 @@
             <p id="heroText">Loading booking options...</p>
             <div class="hero-actions">
               <a class="primary-link" href="/book.html">Reserve tickets</a>
+              <button class="secondary-link hero-game-button" type="button" id="helpChooseButton">Help me choose</button>
               <a class="secondary-link" href="/book.html?experience=private-events">Birthday Parties</a>
             </div>
           </div>
         </div>
         <div class="hero-info-bar" id="occasionTicker" aria-label="Popular occasions"></div>
       </section>
+
+      <dialog class="choice-game-modal" id="choiceGameModal" aria-labelledby="choiceGameTitle">
+        <div class="choice-game-shell">
+          <button class="choice-game-close" type="button" id="choiceGameClose" aria-label="Close">&times;</button>
+          <div class="choice-game-copy">
+            <p class="eyebrow">Let color decide</p>
+            <h2 id="choiceGameTitle">Spin for your experience</h2>
+            <p>Land on an experience, then see if the wheel adds a surprise reward for your visit.</p>
+            <div class="choice-game-result" id="choiceGameResult">
+              <strong>Ready?</strong>
+              <span>Tap spin and let the studio pick.</span>
+            </div>
+            <div class="choice-game-actions">
+              <button type="button" id="spinChoiceButton">Spin</button>
+              <a class="button-link" id="choiceGameBookLink" href="/book.html" hidden>Book this</a>
+            </div>
+          </div>
+          <div class="choice-wheel-wrap">
+            <div class="choice-wheel-pointer" aria-hidden="true"></div>
+            <div class="choice-wheel" id="choiceWheel"></div>
+          </div>
+        </div>
+      </dialog>
 
       <section class="section" id="experiences">
         <div class="section-heading">

@@ -74,6 +74,8 @@ const weekdayOptions = [
   ["6", "Sat"]
 ];
 
+const choiceWheelColors = ["#f04f7f", "#16a3a8", "#f6c445", "#5867c7", "#ff4f12", "#8fe8ea"];
+
 async function api(path, options = {}) {
   const response = await fetch(path, {
     headers: { "Content-Type": "application/json" },
@@ -82,6 +84,50 @@ async function api(path, options = {}) {
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.error || "Request failed");
   return payload;
+}
+
+function choiceRewardForExperience(experience) {
+  const roll = Math.random();
+  if (roll < 0.18) {
+    return {
+      type: "discount",
+      title: "Surprise reward",
+      description: "10% off your reservation fee when staff verifies this spin."
+    };
+  }
+  if (roll < 0.36) {
+    const addOns = addOnsForExperience(experience);
+    const addon = addOns.length ? addOns[Math.floor(Math.random() * addOns.length)] : null;
+    return {
+      type: "addon",
+      title: "Surprise reward",
+      description: addon ? `Free ${addon.name.toLowerCase()} with this booking.` : "Free mini pour bear keychain with this booking."
+    };
+  }
+  return {
+    type: "none",
+    title: "Your pick",
+    description: "No bonus this spin, but the wheel has excellent taste."
+  };
+}
+
+function saveChoiceReward(experience, reward) {
+  const payload = {
+    experienceId: experience.id,
+    experienceName: experience.name,
+    reward,
+    createdAt: new Date().toISOString()
+  };
+  sessionStorage.setItem("spinArtChoiceReward", JSON.stringify(payload));
+}
+
+function loadChoiceReward() {
+  try {
+    const raw = sessionStorage.getItem("spinArtChoiceReward");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 }
 
 function selectedExperience() {
@@ -301,6 +347,80 @@ function renderExperienceCards() {
       </div>
     </a>
   `).join("");
+}
+
+function renderChoiceWheel(options) {
+  const wheel = el("choiceWheel");
+  if (!wheel || !options.length) return;
+
+  const slice = 360 / options.length;
+  const gradient = options.map((experience, index) => {
+    const start = index * slice;
+    const end = (index + 1) * slice;
+    return `${choiceWheelColors[index % choiceWheelColors.length]} ${start}deg ${end}deg`;
+  }).join(", ");
+
+  wheel.style.background = `conic-gradient(${gradient})`;
+  wheel.innerHTML = options.map((experience, index) => {
+    const rotation = index * slice + slice / 2;
+    return `<span style="--label-angle:${rotation}deg">${experience.name}</span>`;
+  }).join("");
+}
+
+function initChoiceGame() {
+  const button = el("helpChooseButton");
+  const modal = el("choiceGameModal");
+  const close = el("choiceGameClose");
+  const spin = el("spinChoiceButton");
+  const result = el("choiceGameResult");
+  const bookLink = el("choiceGameBookLink");
+  const wheel = el("choiceWheel");
+  if (!button || !modal || !spin || !wheel || !result || !bookLink) return;
+
+  const options = state.config.experiences.filter(experience => experience.isPublic !== false);
+  renderChoiceWheel(options);
+  let rotation = 0;
+  let spinning = false;
+
+  button.addEventListener("click", () => {
+    if (typeof modal.showModal === "function") modal.showModal();
+    else modal.setAttribute("open", "");
+  });
+
+  close?.addEventListener("click", () => modal.close());
+  modal.addEventListener("click", event => {
+    if (event.target === modal) modal.close();
+  });
+
+  spin.addEventListener("click", () => {
+    if (spinning || !options.length) return;
+    spinning = true;
+    spin.disabled = true;
+    bookLink.hidden = true;
+    result.innerHTML = `<strong>Spinning...</strong><span>Color is making an executive decision.</span>`;
+
+    const index = Math.floor(Math.random() * options.length);
+    const slice = 360 / options.length;
+    const targetAngle = index * slice + slice / 2;
+    const pointerAngle = 270;
+    rotation += 1440 + pointerAngle - targetAngle;
+    wheel.style.transform = `rotate(${rotation}deg)`;
+
+    window.setTimeout(() => {
+      const experience = options[index];
+      const reward = choiceRewardForExperience(experience);
+      saveChoiceReward(experience, reward);
+      result.innerHTML = `
+        <strong>${experience.name}</strong>
+        <span>${reward.description}</span>
+      `;
+      bookLink.href = `/book.html?experience=${encodeURIComponent(experience.id)}`;
+      bookLink.hidden = false;
+      spin.disabled = false;
+      spin.textContent = "Spin again";
+      spinning = false;
+    }, 2300);
+  });
 }
 
 function renderOccasionPage() {
@@ -537,6 +657,7 @@ function renderExperiencePicker() {
       renderAddOns();
       renderWaiverFields();
       renderBookingIntro();
+      renderChoiceRewardBanner();
       syncGuestBounds();
       clearAppliedDiscount();
       clearAppliedGiftCard();
@@ -571,6 +692,20 @@ function renderBookingIntro() {
 
   const image = el("bookingIntroImage");
   if (image) image.src = experience.imageUrl;
+}
+
+function renderChoiceRewardBanner() {
+  const target = el("choiceRewardBanner");
+  if (!target) return;
+  const reward = loadChoiceReward();
+  const experience = selectedExperience();
+  const isCurrentExperience = reward?.experienceId && experience?.id === reward.experienceId;
+  target.hidden = !isCurrentExperience;
+  target.innerHTML = isCurrentExperience ? `
+    <span>Help me choose result</span>
+    <strong>${reward.experienceName}</strong>
+    <p>${reward.reward.description}</p>
+  ` : "";
 }
 
 function renderOccasionField() {
@@ -798,6 +933,11 @@ async function submitBooking(event) {
       },
       notes: el("notesInput").value
     };
+    const choiceReward = loadChoiceReward();
+    if (choiceReward?.experienceId === experience.id) {
+      const rewardNote = `Help me choose reward: ${choiceReward.reward.description}`;
+      payload.notes = payload.notes ? `${payload.notes}\n${rewardNote}` : rewardNote;
+    }
 
     const result = await api("/api/bookings", {
       method: "POST",
@@ -828,6 +968,7 @@ async function submitBooking(event) {
     setText("discountStatus", "");
     setText("giftCardStatus", "");
     renderWaiverFields();
+    renderChoiceRewardBanner();
     await loadAvailability();
   } catch (error) {
     setText("bookingStatus", error.message);
@@ -1928,6 +2069,7 @@ async function addBlackout(event) {
 async function initLanding() {
   renderLandingBrand();
   initHeroActionWord();
+  initChoiceGame();
   renderMediaStrip();
   renderExperienceCards();
   renderContentSections();
@@ -1953,6 +2095,7 @@ async function initBooking() {
   renderAddOns();
   renderWaiverFields();
   syncGuestBounds();
+  renderChoiceRewardBanner();
   updatePrice();
   await loadAvailability();
 

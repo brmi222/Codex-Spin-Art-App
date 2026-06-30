@@ -385,6 +385,148 @@ nav button:hover {
   box-shadow: 0 16px 34px rgba(0, 0, 0, 0.22);
 }
 
+.hero-game-button {
+  cursor: pointer;
+  color: #071424;
+  border-color: rgba(255, 255, 255, 0.5);
+  background: linear-gradient(90deg, #f6c445, #8fe8ea, #f04f7f);
+}
+
+.choice-game-modal {
+  width: min(920px, calc(100vw - 2rem));
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  color: var(--white);
+  background: #0b1424;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+}
+
+.choice-game-modal::backdrop {
+  background: rgba(4, 9, 18, 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.choice-game-shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(280px, 1.1fr);
+  gap: clamp(1rem, 3vw, 2rem);
+  align-items: center;
+  padding: clamp(1.2rem, 4vw, 2rem);
+  background:
+    radial-gradient(circle at 12% 18%, rgba(240, 79, 127, 0.22), transparent 32%),
+    radial-gradient(circle at 85% 10%, rgba(22, 163, 168, 0.22), transparent 30%),
+    #0b1424;
+}
+
+.choice-game-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 38px;
+  min-height: 38px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}
+
+.choice-game-copy h2 {
+  margin: 0.2rem 0 0.65rem;
+  font-size: clamp(2rem, 5vw, 4.2rem);
+  line-height: 0.95;
+}
+
+.choice-game-copy p {
+  color: rgba(255, 255, 255, 0.76);
+  line-height: 1.45;
+}
+
+.choice-game-result {
+  display: grid;
+  gap: 0.25rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.choice-game-result strong {
+  font-size: 1.4rem;
+}
+
+.choice-game-result span,
+.choice-game-result p {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.choice-game-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.choice-game-actions button,
+.choice-game-actions a {
+  min-height: 46px;
+}
+
+.choice-wheel-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: min(72vw, 460px);
+}
+
+.choice-wheel-pointer {
+  position: absolute;
+  top: 1rem;
+  z-index: 2;
+  width: 0;
+  height: 0;
+  border-left: 16px solid transparent;
+  border-right: 16px solid transparent;
+  border-top: 28px solid var(--white);
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.35));
+}
+
+.choice-wheel {
+  position: relative;
+  width: min(76vw, 410px);
+  aspect-ratio: 1;
+  border: 10px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.38), inset 0 0 0 2px rgba(0, 0, 0, 0.16);
+  transition: transform 2.25s cubic-bezier(0.12, 0.76, 0.18, 1);
+}
+
+.choice-wheel::after {
+  content: "";
+  position: absolute;
+  inset: 42%;
+  border-radius: 50%;
+  background: #071424;
+  border: 5px solid rgba(255, 255, 255, 0.9);
+}
+
+.choice-wheel span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: start center;
+  padding-top: 1.25rem;
+  color: var(--white);
+  font-size: clamp(0.64rem, 1.4vw, 0.88rem);
+  font-weight: 950;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+  text-transform: uppercase;
+  transform: rotate(var(--label-angle));
+}
+
 .hero-booking {
   display: grid;
   gap: 0.65rem;
@@ -1163,6 +1305,33 @@ textarea {
 .employee-promo-row {
   grid-column: 1 / -1;
   margin: 0;
+}
+
+.choice-reward-banner {
+  display: grid;
+  gap: 0.2rem;
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(255, 79, 18, 0.35);
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(255, 79, 18, 0.11), rgba(22, 163, 168, 0.1));
+}
+
+.choice-reward-banner span {
+  color: var(--orange);
+  font-size: 0.75rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.choice-reward-banner strong {
+  font-size: 1.1rem;
+}
+
+.choice-reward-banner p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 800;
 }
 
 .payment-panel {
@@ -2445,6 +2614,14 @@ body[data-page="landing"] .faq-item {
   .hero-grid,
   .media-strip {
     grid-template-columns: 1fr;
+  }
+
+  .choice-game-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .choice-wheel-wrap {
+    min-height: 330px;
   }
 
   .employee-booking-form {
