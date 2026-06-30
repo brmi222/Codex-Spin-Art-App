@@ -68,6 +68,14 @@
         <div class="admin-card">
           <h2>Scheduling</h2>
           <p class="admin-help">Configure resources, weekly availability, minimum notice, slot spacing, and blackout times.</p>
+          <div class="schedule-settings">
+            <label>
+              Online booking cutoff
+              <span>Customers must call when booking inside this window.</span>
+              <input type="number" id="scheduleMinNotice" min="0" step="15" value="60">
+            </label>
+            <button type="button" id="saveScheduleSettings">Save cutoff</button>
+          </div>
           <div id="resourceList" class="schedule-list"></div>
           <form class="schedule-form" id="availabilityRuleForm">
             <h3>Add weekly availability</h3>

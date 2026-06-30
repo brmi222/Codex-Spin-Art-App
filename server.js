@@ -176,6 +176,7 @@ function parseBody(req) {
 }
 
 function publicStore(store) {
+  const schedule = store.schedule || { availabilityRules: [], blackouts: [] };
   return {
     business: store.business,
     settings: {
@@ -191,7 +192,11 @@ function publicStore(store) {
     },
     site: store.site,
     resources: store.resources,
-    schedule: store.schedule || { availabilityRules: [], blackouts: [] },
+    schedule: {
+      minNoticeMinutes: Number(schedule.minNoticeMinutes ?? 60),
+      availabilityRules: schedule.availabilityRules || [],
+      blackouts: schedule.blackouts || []
+    },
     experiences: store.experiences
       .filter(experience => experience.isPublic)
       .map(experience => ({
@@ -342,7 +347,7 @@ function getExperience(store, experienceId) {
   return store.experiences.find(experience => experience.id === experienceId);
 }
 
-function buildSlots(store, experienceId, dateString) {
+function buildSlots(store, experienceId, dateString, options = {}) {
   const experience = getExperience(store, experienceId);
   const day = startOfDay(dateString);
   if (!experience || !day) return [];
@@ -351,6 +356,7 @@ function buildSlots(store, experienceId, dateString) {
   if (!resource) return [];
   const dayIndex = day.getDay();
   const schedule = store.schedule || { availabilityRules: [], blackouts: [] };
+  const globalMinNotice = Number(schedule.minNoticeMinutes ?? 60);
   const rules = (schedule.availabilityRules || []).filter(rule => (
     rule.isActive !== false &&
     rule.resourceId === experience.resourceId &&
@@ -370,14 +376,14 @@ function buildSlots(store, experienceId, dateString) {
   const slots = [];
   for (const rule of rules) {
     const interval = Number(rule.slotIntervalMinutes || 30);
-    const minNotice = Number(rule.minNoticeMinutes || 0);
+    const minNotice = globalMinNotice;
     const startMinute = minutesFromTime(rule.startTime);
     const endMinute = minutesFromTime(rule.endTime);
     for (let minute = startMinute; minute + APPOINTMENT_MINUTES <= endMinute; minute += interval) {
       const time = timeFromMinutes(minute);
       const startsAt = toDateTime(dateString, time);
       const endsAt = bookingEndsAt(startsAt);
-      if (startsAt.getTime() - Date.now() < minNotice * 60_000) continue;
+      if (!options.ignoreMinNotice && startsAt.getTime() - Date.now() < minNotice * 60_000) continue;
       const isBlackout = blackoutRanges.some(range => rangesOverlap(startsAt, endsAt, range.startsAt, range.endsAt));
       const booked = bookedCapacityForSlot(store, experience, startsAt, endsAt);
       const remaining = isBlackout ? 0 : Math.max(0, resource.capacity - booked);
@@ -618,7 +624,7 @@ function validateEmployeeBookingPayload(store, payload) {
     }
   }
 
-  const slot = buildSlots(store, experience.id, payload.date).find(item => item.time === payload.time);
+  const slot = buildSlots(store, experience.id, payload.date, { ignoreMinNotice: true }).find(item => item.time === payload.time);
   const resource = getResource(store, experience.resourceId);
   const requiredCapacity = requiredCapacityForBooking(resource, experience, guestCount);
   const hasEnoughCapacity = slot?.remaining >= requiredCapacity;
@@ -649,7 +655,8 @@ async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/availability") {
     const experienceId = url.searchParams.get("experienceId");
     const date = url.searchParams.get("date");
-    return sendJson(res, 200, { slots: buildSlots(store, experienceId, date) });
+    const ignoreMinNotice = url.searchParams.get("staff") === "1";
+    return sendJson(res, 200, { slots: buildSlots(store, experienceId, date, { ignoreMinNotice }) });
   }
 
   if (req.method === "GET" && url.pathname === "/api/employee/day") {
@@ -673,7 +680,7 @@ async function handleApi(req, res, url) {
           const booked = bookedCapacityForResource(store, resource, startsAt, endsAt);
           const bookings = store.bookings.filter(booking => (
             booking.resourceId === resource.id &&
-            !["cancelled", "failed", "no_show"].includes(booking.status) &&
+            !["cancelled", "failed"].includes(booking.status) &&
             rangesOverlap(new Date(booking.startsAt), new Date(booking.endsAt), startsAt, endsAt)
           ));
           return {
@@ -959,6 +966,7 @@ async function handleApi(req, res, url) {
     if (payload.site) store.site = { ...store.site, ...payload.site };
     if (Array.isArray(payload.resources)) store.resources = payload.resources;
     if (payload.schedule) store.schedule = {
+      minNoticeMinutes: Number(payload.schedule.minNoticeMinutes ?? store.schedule?.minNoticeMinutes ?? 60),
       availabilityRules: Array.isArray(payload.schedule.availabilityRules) ? payload.schedule.availabilityRules : store.schedule?.availabilityRules || [],
       blackouts: Array.isArray(payload.schedule.blackouts) ? payload.schedule.blackouts : store.schedule?.blackouts || []
     };

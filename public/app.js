@@ -870,11 +870,13 @@ async function saveSchedule() {
 }
 
 function hydrateScheduleForms() {
+  state.config.schedule = state.config.schedule || { minNoticeMinutes: 60, availabilityRules: [], blackouts: [] };
   const resourceOptions = state.config.resources.map(resource => `<option value="${resource.id}">${resource.name}</option>`).join("");
   const experienceOptions = state.config.experiences.map(experience => `<option value="${experience.id}">${experience.name}</option>`).join("");
   if (el("ruleResource")) el("ruleResource").innerHTML = resourceOptions;
   if (el("blackoutResource")) el("blackoutResource").innerHTML = resourceOptions;
   if (el("ruleExperience")) el("ruleExperience").innerHTML = experienceOptions;
+  if (el("scheduleMinNotice")) el("scheduleMinNotice").value = Number(state.config.schedule.minNoticeMinutes ?? 60);
   if (el("ruleDays")) {
     el("ruleDays").innerHTML = weekdayOptions.map(([value, label]) => `
       <label class="weekday-choice">
@@ -887,7 +889,7 @@ function hydrateScheduleForms() {
 
 function renderScheduleAdmin() {
   if (!el("resourceList")) return;
-  const schedule = state.config.schedule || { availabilityRules: [], blackouts: [] };
+  const schedule = state.config.schedule || { minNoticeMinutes: 60, availabilityRules: [], blackouts: [] };
 
   el("resourceList").innerHTML = state.config.resources.map(resource => `
     <article class="schedule-row">
@@ -902,7 +904,7 @@ function renderScheduleAdmin() {
     <article class="schedule-row">
       <div>
         <strong>${rule.name}</strong>
-        <span>${resourceName(rule.resourceId)} | ${(rule.experienceIds || []).map(experienceName).join(", ")} | ${daysLabel(rule.daysOfWeek)} | ${rule.startTime}-${rule.endTime} | every ${rule.slotIntervalMinutes} min | notice ${rule.minNoticeMinutes} min</span>
+        <span>${resourceName(rule.resourceId)} | ${(rule.experienceIds || []).map(experienceName).join(", ")} | ${daysLabel(rule.daysOfWeek)} | ${rule.startTime}-${rule.endTime} | every ${rule.slotIntervalMinutes} min | online cutoff ${Number(schedule.minNoticeMinutes ?? 60)} min</span>
       </div>
       <button type="button" data-delete-rule="${rule.id}">Delete</button>
     </article>
@@ -933,6 +935,13 @@ function renderScheduleAdmin() {
       renderScheduleAdmin();
     });
   });
+}
+
+async function saveScheduleSettings() {
+  state.config.schedule = state.config.schedule || { availabilityRules: [], blackouts: [] };
+  state.config.schedule.minNoticeMinutes = Number(el("scheduleMinNotice")?.value || 0);
+  await saveSchedule();
+  renderScheduleAdmin();
 }
 
 function resourceName(resourceId) {
@@ -1091,7 +1100,7 @@ async function loadEmployeeAppointmentAvailability() {
   const timeInput = el("employeeAppointmentTime");
   if (!experience || !date || !timeInput) return;
 
-  const payload = await api(`/api/availability?experienceId=${encodeURIComponent(experience.id)}&date=${encodeURIComponent(date)}`);
+  const payload = await api(`/api/availability?experienceId=${encodeURIComponent(experience.id)}&date=${encodeURIComponent(date)}&staff=1`);
   const available = payload.slots.filter(slot => slot.isAvailable);
   const resource = state.config.resources.find(item => item.id === experience.resourceId);
   const unit = resource ? resourceCapacityUnit(resource) : "slots";
@@ -1337,12 +1346,10 @@ function renderEmployeeBookingDetail(date, row, resource, cell, booking) {
         method: "PATCH",
         body: JSON.stringify({ status: button.dataset.statusValue })
       });
-      cell.bookings = button.dataset.statusValue === "no_show"
-        ? cell.bookings.filter(item => item.id !== result.booking.id)
-        : cell.bookings.map(item => item.id === result.booking.id ? result.booking : item);
+      cell.bookings = cell.bookings.map(item => item.id === result.booking.id ? result.booking : item);
       if (button.dataset.statusValue === "no_show") {
         await loadEmployeeDay();
-        target.innerHTML = "<p class=\"eyebrow\">Updated</p><h2>Marked no show</h2><p>The booking has been removed from active capacity.</p>";
+        renderEmployeeBookingDetail(date, row, resource, cell, result.booking);
         return;
       }
       renderEmployeeBookingDetail(date, row, resource, cell, result.booking);
@@ -1420,7 +1427,7 @@ function selectedRuleDays() {
 
 async function addAvailabilityRule(event) {
   event.preventDefault();
-  state.config.schedule = state.config.schedule || { availabilityRules: [], blackouts: [] };
+  state.config.schedule = state.config.schedule || { minNoticeMinutes: 60, availabilityRules: [], blackouts: [] };
   state.config.schedule.availabilityRules.push({
     id: `rule-${Date.now()}`,
     name: el("ruleName").value.trim(),
@@ -1441,7 +1448,7 @@ async function addAvailabilityRule(event) {
 
 async function addBlackout(event) {
   event.preventDefault();
-  state.config.schedule = state.config.schedule || { availabilityRules: [], blackouts: [] };
+  state.config.schedule = state.config.schedule || { minNoticeMinutes: 60, availabilityRules: [], blackouts: [] };
   state.config.schedule.blackouts.push({
     id: `blackout-${Date.now()}`,
     resourceId: el("blackoutResource").value,
@@ -1508,6 +1515,7 @@ async function initAdmin() {
 
   el("refreshAdmin").addEventListener("click", loadAdmin);
   el("saveContent").addEventListener("click", saveContent);
+  el("saveScheduleSettings").addEventListener("click", saveScheduleSettings);
   el("availabilityRuleForm").addEventListener("submit", addAvailabilityRule);
   el("blackoutForm").addEventListener("submit", addBlackout);
 }
