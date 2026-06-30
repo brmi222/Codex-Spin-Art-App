@@ -42,6 +42,24 @@ async function main() {
     create: { key: "settings", value: store.settings || {} }
   });
 
+  await prisma.siteSetting.upsert({
+    where: { key: "schedule" },
+    update: { value: store.schedule || {} },
+    create: { key: "schedule", value: store.schedule || {} }
+  });
+
+  await prisma.siteSetting.upsert({
+    where: { key: "policies" },
+    update: { value: store.policies || {} },
+    create: { key: "policies", value: store.policies || {} }
+  });
+
+  await prisma.siteSetting.upsert({
+    where: { key: "holds" },
+    update: { value: store.holds || [] },
+    create: { key: "holds", value: store.holds || [] }
+  });
+
   for (const resource of store.resources || []) {
     await prisma.resource.upsert({
       where: { id: resource.id },

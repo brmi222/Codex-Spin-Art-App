@@ -1,10 +1,11 @@
+require("dotenv/config");
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { readStore, writeStore, USE_DATABASE } = require("./lib/storeRepository");
 
 const PORT = Number(process.env.PORT || 4280);
-const DATA_FILE = path.join(__dirname, "data", "store.json");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const HOLD_MINUTES = 12;
 const DRIP_API_BASE = "https://api.getdrip.com/v2";
@@ -44,25 +45,6 @@ const uploadTypes = {
   "video/mp4": ".mp4",
   "video/quicktime": ".mov"
 };
-
-function readStore() {
-  const store = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
-  store.settings = {
-    currency: "USD",
-    taxRateBps: DEFAULT_TAX_RATE_BPS,
-    taxLabel: "Wake County sales tax",
-    paymentProvider: PAYMENT_PROVIDER,
-    ...(store.settings || {})
-  };
-  store.payments = Array.isArray(store.payments) ? store.payments : [];
-  store.discounts = Array.isArray(store.discounts) ? store.discounts : [];
-  store.giftCards = Array.isArray(store.giftCards) ? store.giftCards : [];
-  return store;
-}
-
-function writeStore(store) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2));
-}
 
 function sendJson(res, status, payload) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
@@ -322,11 +304,11 @@ function activeHolds(store) {
   return store.holds.filter(hold => new Date(hold.expiresAt).getTime() > now);
 }
 
-function cleanupHolds(store) {
+async function cleanupHolds(store) {
   const active = activeHolds(store);
   if (active.length !== store.holds.length) {
     store.holds = active;
-    writeStore(store);
+    await writeStore(store);
   }
 }
 
@@ -932,8 +914,8 @@ function validateEmployeeBookingPayload(store, payload) {
 }
 
 async function handleApi(req, res, url) {
-  const store = readStore();
-  cleanupHolds(store);
+  const store = await readStore();
+  await cleanupHolds(store);
 
   if (req.method === "GET" && url.pathname === "/api/config") {
     return sendJson(res, 200, publicStore(store));
@@ -954,7 +936,7 @@ async function handleApi(req, res, url) {
     try {
       const payload = await parseBody(req);
       const media = saveUploadedMedia(store, payload);
-      writeStore(store);
+      await writeStore(store);
       return sendJson(res, 201, { media, config: publicStore(store) });
     } catch (error) {
       return sendJson(res, 400, { error: error.message });
@@ -969,7 +951,7 @@ async function handleApi(req, res, url) {
         return sendJson(res, 400, { error: "Gift card code already exists." });
       }
       store.giftCards.push(giftCard);
-      writeStore(store);
+      await writeStore(store);
       return sendJson(res, 201, { giftCard: publicGiftCard(giftCard) });
     } catch (error) {
       return sendJson(res, 400, { error: error.message });
@@ -997,7 +979,7 @@ async function handleApi(req, res, url) {
           skipped.push({ row: index + 1, code: row.code || "", reason: error.message });
         }
       });
-      writeStore(store);
+      await writeStore(store);
       return sendJson(res, 201, { created, skipped });
     } catch (error) {
       return sendJson(res, 400, { error: error.message });
@@ -1169,7 +1151,7 @@ async function handleApi(req, res, url) {
       if (storedDiscount) storedDiscount.usedCount = Number(storedDiscount.usedCount || 0) + 1;
     }
     store.bookings.push(booking);
-    writeStore(store);
+    await writeStore(store);
     return sendJson(res, 201, { booking });
   }
 
@@ -1262,7 +1244,7 @@ async function handleApi(req, res, url) {
     }
 
     store.bookings.push(booking);
-    writeStore(store);
+    await writeStore(store);
 
     let crm = { skipped: true, reason: "Drip credentials are not configured." };
     try {
@@ -1306,7 +1288,7 @@ async function handleApi(req, res, url) {
     booking.paidAt = now;
     booking.updatedAt = now;
 
-    writeStore(store);
+    await writeStore(store);
     return sendJson(res, 200, { booking, payment: publicPayment(payment) });
   }
 
@@ -1327,7 +1309,7 @@ async function handleApi(req, res, url) {
       booking.updatedAt = now;
     }
 
-    writeStore(store);
+    await writeStore(store);
     return sendJson(res, 200, { booking, payment: publicPayment(payment) });
   }
 
@@ -1380,7 +1362,7 @@ async function handleApi(req, res, url) {
     if (typeof payload.notes === "string") booking.notes = payload.notes.trim();
     booking.updatedAt = new Date().toISOString();
 
-    writeStore(store);
+    await writeStore(store);
     return sendJson(res, 200, { booking });
   }
 
@@ -1398,7 +1380,7 @@ async function handleApi(req, res, url) {
     if (Array.isArray(payload.addOns)) store.addOns = payload.addOns;
     if (Array.isArray(payload.discounts)) store.discounts = payload.discounts;
     if (payload.policies) store.policies = { ...store.policies, ...payload.policies };
-    writeStore(store);
+    await writeStore(store);
     return sendJson(res, 200, publicStore(store));
   }
 

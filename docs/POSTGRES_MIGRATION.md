@@ -40,6 +40,8 @@ npm.cmd run db:seed
 - Seed app configuration such as experiences, resources, add-ons, discounts, media references, and site settings.
 - Use test/demo bookings only while building.
 - Do not import real customers, real gift card balances, or production booking history yet.
+- The Node server uses Postgres automatically when `DATABASE_URL` is present. Without `DATABASE_URL`, it falls back to local `data/store.json`.
+- Current runtime coverage includes config reads, availability reads, public bookings, employee bookings, payments, discounts, gift cards, holds, and admin config/media updates through the existing API shape.
 
 ## Production Cutover Later
 
