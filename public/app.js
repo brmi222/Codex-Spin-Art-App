@@ -93,6 +93,8 @@ const defaultChoiceRewards = [
   }
 ];
 
+const coreChoiceExperienceIds = new Set(["spin", "pour-art", "splatter", "tumblers"]);
+
 async function api(path, options = {}) {
   const response = await fetch(path, {
     headers: { "Content-Type": "application/json" },
@@ -124,7 +126,7 @@ function choiceSlices() {
     weight: Math.max(1, Number(item.weight || 1))
   }));
   const experiences = state.config.experiences
-    .filter(experience => experience.isPublic !== false)
+    .filter(experience => experience.isPublic !== false && coreChoiceExperienceIds.has(experience.id))
     .map(experience => ({
       id: experience.id,
       type: "experience",
