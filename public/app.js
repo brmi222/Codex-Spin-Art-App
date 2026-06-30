@@ -3,7 +3,9 @@ const state = {
   selectedExperienceId: null,
   selectedOccasionId: null,
   appliedDiscount: null,
-  employeeDiscount: null
+  appliedGiftCard: null,
+  employeeDiscount: null,
+  employeeGiftCard: null
 };
 
 const dollars = cents => new Intl.NumberFormat("en-US", {
@@ -390,6 +392,8 @@ function pricingBreakdown() {
   const dueNowSubtotal = amountDueNowSubtotal();
   const dueNowTax = calculateTax(dueNowSubtotal);
   const dueNow = dueNowSubtotal + dueNowTax;
+  const giftCard = Math.min(Number(state.appliedGiftCard?.balanceCents || 0), dueNow);
+  const paymentDue = Math.max(0, dueNow - giftCard);
   return {
     subtotal,
     discount,
@@ -399,6 +403,8 @@ function pricingBreakdown() {
     dueNowSubtotal,
     dueNowTax,
     dueNow,
+    giftCard,
+    paymentDue,
     balance: Math.max(0, total - dueNow)
   };
 }
@@ -427,10 +433,11 @@ function updatePrice() {
   const pricePill = el("pricePill");
   if (!pricePill || !selectedExperience()) return;
   const breakdown = pricingBreakdown();
-  pricePill.textContent = `${dollars(breakdown.dueNow)} due now incl. tax | ${dollars(breakdown.total)} total${breakdown.discount ? ` | ${dollars(breakdown.discount)} discount` : ""}`;
+  pricePill.textContent = `${dollars(breakdown.paymentDue)} due now incl. tax | ${dollars(breakdown.total)} total${breakdown.discount ? ` | ${dollars(breakdown.discount)} discount` : ""}${breakdown.giftCard ? ` | ${dollars(breakdown.giftCard)} gift card` : ""}`;
 }
 
 async function applyDiscountCode() {
+  clearAppliedGiftCard();
   const input = el("discountCodeInput");
   const code = input?.value.trim();
   if (!code) {
@@ -470,6 +477,42 @@ function clearAppliedDiscount() {
   updatePrice();
 }
 
+async function applyGiftCardCode() {
+  const input = el("giftCardCodeInput");
+  const code = input?.value.trim();
+  if (!code) {
+    state.appliedGiftCard = null;
+    setText("giftCardStatus", "");
+    updatePrice();
+    return;
+  }
+
+  try {
+    const breakdown = pricingBreakdown();
+    const result = await api("/api/gift-cards/preview", {
+      method: "POST",
+      body: JSON.stringify({
+        code,
+        amountCents: breakdown.dueNow
+      })
+    });
+    state.appliedGiftCard = result.giftCard;
+    setText("giftCardStatus", `${result.giftCard.code} applied: ${dollars(result.giftCardCents)} toward today's payment. ${dollars(result.giftCard.balanceCents)} available.`);
+    updatePrice();
+  } catch (error) {
+    state.appliedGiftCard = null;
+    setText("giftCardStatus", error.message);
+    updatePrice();
+  }
+}
+
+function clearAppliedGiftCard() {
+  if (!state.appliedGiftCard) return;
+  state.appliedGiftCard = null;
+  setText("giftCardStatus", "");
+  updatePrice();
+}
+
 function renderExperiencePicker() {
   const target = el("experienceList");
   if (!target) return;
@@ -496,6 +539,7 @@ function renderExperiencePicker() {
       renderBookingIntro();
       syncGuestBounds();
       clearAppliedDiscount();
+      clearAppliedGiftCard();
       await loadAvailability();
       updatePrice();
     });
@@ -560,6 +604,7 @@ function renderProjectOptions() {
   document.querySelectorAll("[data-project]").forEach(input => {
     input.addEventListener("change", () => {
       clearAppliedDiscount();
+      clearAppliedGiftCard();
       updatePrice();
     });
   });
@@ -581,6 +626,7 @@ function renderAddOns() {
   document.querySelectorAll("[data-addon]").forEach(input => {
     input.addEventListener("change", () => {
       clearAppliedDiscount();
+      clearAppliedGiftCard();
       updatePrice();
     });
   });
@@ -732,6 +778,7 @@ async function submitBooking(event) {
       addOnIds: selectedAddOns(),
       projectId: selectedProject(),
       discountCode: state.appliedDiscount?.code || el("discountCodeInput")?.value.trim() || "",
+      giftCardCode: state.appliedGiftCard?.code || el("giftCardCodeInput")?.value.trim() || "",
       projectName: document.querySelector("[data-project]:checked")?.closest("label")?.querySelector("strong")?.textContent || "",
       occasion: selectedOccasion()?.label || (el("occasionInput")?.value === "other" ? "Other" : ""),
       occasionId: state.selectedOccasionId || el("occasionInput")?.value || "",
@@ -775,8 +822,11 @@ async function submitBooking(event) {
     renderProjectOptions();
     renderAddOns();
     state.appliedDiscount = null;
+    state.appliedGiftCard = null;
     if (el("discountCodeInput")) el("discountCodeInput").value = "";
+    if (el("giftCardCodeInput")) el("giftCardCodeInput").value = "";
     setText("discountStatus", "");
+    setText("giftCardStatus", "");
     renderWaiverFields();
     await loadAvailability();
   } catch (error) {
@@ -801,6 +851,7 @@ function renderPaymentPanel(payment, booking) {
       <p class="eyebrow">Checkout</p>
       <h3>${dollars(payment.amountCents)} due now</h3>
       <p>${dollars(payment.subtotalCents)} subtotal + ${dollars(payment.taxCents)} tax. ${booking.discount ? `${booking.discount.code} saved ${dollars(booking.discountCents || booking.discount.discountCents || 0)}. ` : ""}${booking.balanceCents ? `${dollars(booking.balanceCents)} remaining balance can be paid in store.` : "Paid in full after checkout."}</p>
+      ${booking.giftCardCents ? `<p>Gift card covered ${dollars(booking.giftCardCents)} of today's payment.</p>` : ""}
     </div>
     ${isMock
       ? `<button type="button" data-mock-pay="${payment.id}">Complete mock payment</button>`
@@ -847,6 +898,7 @@ function hydrateAdminContentFields() {
 async function loadAdmin() {
   const admin = await api("/api/admin");
   state.config.discounts = admin.discounts || [];
+  state.config.giftCards = admin.giftCards || [];
   const bookings = admin.bookings;
   const payments = admin.payments || [];
   const target = el("adminBookings");
@@ -880,6 +932,7 @@ async function loadAdmin() {
         ${booking.projectName ? `<small>Project: ${booking.projectName}</small><br>` : ""}
         ${booking.occasion ? `<small>Occasion: ${booking.occasion}</small><br>` : ""}
         ${booking.discount ? `<small>Discount: ${booking.discount.code} (${dollars(booking.discountCents || booking.discount.discountCents || 0)})</small><br>` : ""}
+        ${booking.giftCard ? `<small>Gift card: ${booking.giftCard.code} (${dollars(booking.giftCardCents || booking.giftCard.amountCents || 0)})</small><br>` : ""}
         <small>Payment: ${(booking.paymentStatus || booking.status).replaceAll("_", " ")} | Due now: ${dollars(booking.amountDueNowCents || booking.depositCents)} | Tax: ${dollars(booking.taxCents || 0)} | Balance: ${dollars(booking.balanceCents)}</small><br>
         <small>Waiver: ${booking.waiverStatus.replaceAll("_", " ")}</small>
       </div>
@@ -904,6 +957,7 @@ async function loadAdmin() {
     });
   });
   renderDiscountAdmin();
+  renderGiftCardAdmin();
 }
 
 function hydrateDiscountForm() {
@@ -1087,6 +1141,60 @@ async function addDiscount(event) {
   await saveDiscounts();
 }
 
+function renderGiftCardAdmin() {
+  const target = el("giftCardList");
+  if (!target) return;
+  const giftCards = state.config.giftCards || [];
+  target.innerHTML = giftCards.length ? giftCards.map(card => `
+    <article class="schedule-row">
+      <div>
+        <strong>${card.code} | ${dollars(card.balanceCents)} remaining</strong>
+        <span>${card.holderName || "No holder"}${card.holderEmail ? ` | ${card.holderEmail}` : ""} | issued ${dollars(card.originalBalanceCents)} | ${card.status || "active"}${card.expiresAt ? ` | expires ${card.expiresAt.slice(0, 10)}` : ""}</span>
+        ${card.transactions?.length ? `<span>${card.transactions.length} transaction${card.transactions.length === 1 ? "" : "s"} | last ${card.transactions[card.transactions.length - 1].type}</span>` : ""}
+      </div>
+    </article>
+  `).join("") : "<p>No gift cards yet.</p>";
+}
+
+async function addGiftCard(event) {
+  event.preventDefault();
+  setText("giftCardAdminStatus", "Saving gift card...");
+  try {
+    await api("/api/admin/gift-cards", {
+      method: "POST",
+      body: JSON.stringify({
+        code: el("giftCardCode").value,
+        balance: Number(el("giftCardBalance").value || 0),
+        holderName: el("giftCardHolderName").value,
+        holderEmail: el("giftCardHolderEmail").value,
+        holderPhone: el("giftCardHolderPhone").value,
+        expiresAt: el("giftCardExpires").value ? `${el("giftCardExpires").value}T23:59:59` : "",
+        note: el("giftCardNote").value
+      })
+    });
+    event.target.reset();
+    await loadAdmin();
+    setText("giftCardAdminStatus", "Gift card added.");
+  } catch (error) {
+    setText("giftCardAdminStatus", error.message);
+  }
+}
+
+async function importGiftCards(event) {
+  event.preventDefault();
+  setText("giftCardAdminStatus", "Importing gift cards...");
+  try {
+    const result = await api("/api/admin/gift-cards/import", {
+      method: "POST",
+      body: JSON.stringify({ csv: el("giftCardImportCsv").value })
+    });
+    await loadAdmin();
+    setText("giftCardAdminStatus", `Imported ${result.created.length} gift card${result.created.length === 1 ? "" : "s"}. ${result.skipped.length ? `${result.skipped.length} skipped.` : ""}`);
+  } catch (error) {
+    setText("giftCardAdminStatus", error.message);
+  }
+}
+
 async function saveContent() {
   setText("contentStatus", "Saving...");
   const updatedSite = {
@@ -1253,12 +1361,16 @@ function employeeEstimateBreakdown() {
   const discount = discountAmountForSubtotal(state.employeeDiscount, subtotal);
   const discountedSubtotal = Math.max(0, subtotal - discount);
   const tax = calculateTax(discountedSubtotal);
+  const total = discountedSubtotal + tax;
+  const giftCard = Math.min(Number(state.employeeGiftCard?.balanceCents || 0), total);
   return {
     subtotal,
     discount,
     discountedSubtotal,
     tax,
-    total: discountedSubtotal + tax
+    total,
+    giftCard,
+    paymentDue: Math.max(0, total - giftCard)
   };
 }
 
@@ -1272,11 +1384,11 @@ function updateEmployeePaymentSummary() {
   const addOnCount = selectedEmployeeAddOnItems().reduce((sum, item) => sum + item.quantity, 0);
   const isPaidNow = paymentInput.value === "paid";
   target.innerHTML = `
-    <strong>${dollars(breakdown.total)} total</strong>
-    <span>${dollars(breakdown.subtotal)} subtotal${breakdown.discount ? ` - ${dollars(breakdown.discount)} discount` : ""} + ${dollars(breakdown.tax)} tax${addOnCount ? ` | ${addOnCount} add-on${addOnCount === 1 ? "" : "s"}` : ""}</span>
+    <strong>${dollars(breakdown.paymentDue)} ${isPaidNow ? "to collect" : "balance after gift card"}</strong>
+    <span>${dollars(breakdown.subtotal)} subtotal${breakdown.discount ? ` - ${dollars(breakdown.discount)} discount` : ""} + ${dollars(breakdown.tax)} tax${breakdown.giftCard ? ` - ${dollars(breakdown.giftCard)} gift card` : ""}${addOnCount ? ` | ${addOnCount} add-on${addOnCount === 1 ? "" : "s"}` : ""}</span>
     <span>${isPaidNow ? "Collect payment in POS now. This booking will be marked paid." : "Booking will stay open with a balance due."}</span>
   `;
-  submitButton.textContent = isPaidNow ? `Take payment & add ${dollars(breakdown.total)}` : "Add to schedule";
+  submitButton.textContent = isPaidNow ? `Take payment & add ${dollars(breakdown.paymentDue)}` : "Add to schedule";
 }
 
 async function applyEmployeeDiscountCode() {
@@ -1319,6 +1431,42 @@ function clearEmployeeDiscount() {
   updateEmployeePaymentSummary();
 }
 
+async function applyEmployeeGiftCardCode() {
+  const input = el("employeeGiftCardCodeInput");
+  const code = input?.value.trim();
+  if (!code) {
+    state.employeeGiftCard = null;
+    setText("employeeGiftCardStatus", "");
+    updateEmployeePaymentSummary();
+    return;
+  }
+
+  const breakdown = employeeEstimateBreakdown();
+  try {
+    const result = await api("/api/gift-cards/preview", {
+      method: "POST",
+      body: JSON.stringify({
+        code,
+        amountCents: breakdown.total
+      })
+    });
+    state.employeeGiftCard = result.giftCard;
+    setText("employeeGiftCardStatus", `${result.giftCard.code} applied: ${dollars(result.giftCardCents)} available for this booking.`);
+    updateEmployeePaymentSummary();
+  } catch (error) {
+    state.employeeGiftCard = null;
+    setText("employeeGiftCardStatus", error.message);
+    updateEmployeePaymentSummary();
+  }
+}
+
+function clearEmployeeGiftCard() {
+  if (!state.employeeGiftCard) return;
+  state.employeeGiftCard = null;
+  setText("employeeGiftCardStatus", "");
+  updateEmployeePaymentSummary();
+}
+
 function renderEmployeeAddOns() {
   const target = el("employeeAddonList");
   const summary = el("employeeAddonSummary");
@@ -1339,6 +1487,7 @@ function renderEmployeeAddOns() {
   target.querySelectorAll("[data-employee-addon-qty]").forEach(input => {
     input.addEventListener("input", () => {
       clearEmployeeDiscount();
+      clearEmployeeGiftCard();
       const count = selectedEmployeeAddOnItems().reduce((sum, item) => sum + item.quantity, 0);
       if (summary) summary.textContent = count ? `${count} selected` : "None selected";
       updateEmployeePaymentSummary();
@@ -1607,6 +1756,7 @@ function renderEmployeeBookingDetail(date, row, resource, cell, booking) {
     <div class="employee-total-grid">
       <div><span>Subtotal</span><strong>${dollars(subtotal)}</strong></div>
       ${booking.discount ? `<div><span>Discount</span><strong>-${dollars(booking.discountCents || booking.discount.discountCents || 0)}</strong></div>` : ""}
+      ${booking.giftCard ? `<div><span>Gift card</span><strong>-${dollars(booking.giftCardCents || booking.giftCard.amountCents || 0)}</strong></div>` : ""}
       <div><span>Tax</span><strong>${dollars(tax)}</strong></div>
       <div><span>Total</span><strong>${dollars(total)}</strong></div>
       <div><span>Paid</span><strong>${dollars(paid)}</strong></div>
@@ -1703,6 +1853,9 @@ async function submitEmployeeAppointment(event) {
     if (state.employeeDiscount?.code || el("employeeDiscountCodeInput")?.value.trim()) {
       payload.discountCode = state.employeeDiscount?.code || el("employeeDiscountCodeInput").value.trim();
     }
+    if (state.employeeGiftCard?.code || el("employeeGiftCardCodeInput")?.value.trim()) {
+      payload.giftCardCode = state.employeeGiftCard?.code || el("employeeGiftCardCodeInput").value.trim();
+    }
     if (el("employeePaymentInput")?.value === "paid") {
       payload.paymentStatus = "paid";
     }
@@ -1718,8 +1871,11 @@ async function submitEmployeeAppointment(event) {
     hydrateEmployeeBookingForm();
     renderEmployeeAddOns();
     state.employeeDiscount = null;
+    state.employeeGiftCard = null;
     if (el("employeeDiscountCodeInput")) el("employeeDiscountCodeInput").value = "";
+    if (el("employeeGiftCardCodeInput")) el("employeeGiftCardCodeInput").value = "";
     setText("employeeDiscountStatus", "");
+    setText("employeeGiftCardStatus", "");
     await loadEmployeeAppointmentAvailability();
     await loadEmployeeDay();
   } catch (error) {
@@ -1803,16 +1959,22 @@ async function initBooking() {
   el("dateInput").addEventListener("change", loadAvailability);
   el("guestInput").addEventListener("input", () => {
     clearAppliedDiscount();
+    clearAppliedGiftCard();
     updatePrice();
     renderWaiverFields();
   });
   el("paymentMode").addEventListener("change", () => {
     clearAppliedDiscount();
+    clearAppliedGiftCard();
     updatePrice();
   });
   el("applyDiscountButton").addEventListener("click", applyDiscountCode);
+  el("applyGiftCardButton").addEventListener("click", applyGiftCardCode);
   el("discountCodeInput").addEventListener("input", () => {
     if (state.appliedDiscount) clearAppliedDiscount();
+  });
+  el("giftCardCodeInput").addEventListener("input", () => {
+    if (state.appliedGiftCard) clearAppliedGiftCard();
   });
   el("occasionInput").addEventListener("change", () => {
     state.selectedOccasionId = el("occasionInput").value;
@@ -1835,6 +1997,8 @@ async function initAdmin() {
   el("mediaUploadForm").addEventListener("submit", uploadAdminMedia);
   el("saveScheduleSettings").addEventListener("click", saveScheduleSettings);
   el("discountForm").addEventListener("submit", addDiscount);
+  el("giftCardForm").addEventListener("submit", addGiftCard);
+  el("giftCardImportForm").addEventListener("submit", importGiftCards);
   el("availabilityRuleForm").addEventListener("submit", addAvailabilityRule);
   el("blackoutForm").addEventListener("submit", addBlackout);
 }
@@ -1848,19 +2012,25 @@ async function initEmployee() {
   el("employeeAppointmentDate").addEventListener("change", loadEmployeeAppointmentAvailability);
   el("employeeExperienceInput").addEventListener("change", async () => {
     clearEmployeeDiscount();
+    clearEmployeeGiftCard();
     syncEmployeeGuestBounds();
     renderEmployeeAddOns();
     await loadEmployeeAppointmentAvailability();
   });
   el("employeeGuestInput").addEventListener("input", () => {
     clearEmployeeDiscount();
+    clearEmployeeGiftCard();
     syncEmployeeGuestBounds();
     updateEmployeePaymentSummary();
   });
   el("employeePaymentInput").addEventListener("change", updateEmployeePaymentSummary);
   el("employeeApplyDiscountButton").addEventListener("click", applyEmployeeDiscountCode);
+  el("employeeApplyGiftCardButton").addEventListener("click", applyEmployeeGiftCardCode);
   el("employeeDiscountCodeInput").addEventListener("input", () => {
     if (state.employeeDiscount) clearEmployeeDiscount();
+  });
+  el("employeeGiftCardCodeInput").addEventListener("input", () => {
+    if (state.employeeGiftCard) clearEmployeeGiftCard();
   });
   el("employeeBookingForm").addEventListener("submit", submitEmployeeAppointment);
   el("refreshEmployee").addEventListener("click", loadEmployeeDay);

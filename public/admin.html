@@ -37,6 +37,7 @@
         <button type="button" data-admin-tab="content">Content</button>
         <button type="button" data-admin-tab="media">Media</button>
         <button type="button" data-admin-tab="discounts">Discounts</button>
+        <button type="button" data-admin-tab="gift-cards">Gift Cards</button>
         <button type="button" data-admin-tab="schedule">Schedule</button>
       </nav>
 
@@ -161,6 +162,53 @@
           </form>
           <div class="schedule-list" id="discountList"></div>
           <p class="status" id="discountAdminStatus"></p>
+        </div>
+      </section>
+
+      <section class="admin-panel" data-admin-panel="gift-cards">
+        <div class="admin-card">
+          <h2>Gift cards</h2>
+          <p class="admin-help">Create new cards, migrate existing balances, and audit remaining balances. CSV import columns: code, balance, holder name, holder email, holder phone, note.</p>
+          <form class="schedule-form" id="giftCardForm">
+            <div class="field-grid">
+              <label>
+                Code
+                <input type="text" id="giftCardCode" placeholder="GC1001" required>
+              </label>
+              <label>
+                Balance
+                <input type="number" id="giftCardBalance" min="1" step="0.01" value="50" required>
+              </label>
+              <label>
+                Holder name
+                <input type="text" id="giftCardHolderName" placeholder="Customer name">
+              </label>
+              <label>
+                Holder email
+                <input type="email" id="giftCardHolderEmail" placeholder="customer@example.com">
+              </label>
+              <label>
+                Holder phone
+                <input type="tel" id="giftCardHolderPhone">
+              </label>
+              <label>
+                Expires
+                <input type="date" id="giftCardExpires">
+              </label>
+            </div>
+            <label>
+              Note
+              <input type="text" id="giftCardNote" placeholder="Migrated from previous system, comp, promo, etc.">
+            </label>
+            <button type="submit">Add gift card</button>
+          </form>
+          <form class="schedule-form" id="giftCardImportForm">
+            <h3>Import existing cards</h3>
+            <textarea id="giftCardImportCsv" rows="5" placeholder="GC1001,50,Jane Smith,jane@example.com,9195551234,Legacy balance"></textarea>
+            <button type="submit">Import CSV</button>
+          </form>
+          <div class="schedule-list" id="giftCardList"></div>
+          <p class="status" id="giftCardAdminStatus"></p>
         </div>
       </section>
 

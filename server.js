@@ -56,6 +56,7 @@ function readStore() {
   };
   store.payments = Array.isArray(store.payments) ? store.payments : [];
   store.discounts = Array.isArray(store.discounts) ? store.discounts : [];
+  store.giftCards = Array.isArray(store.giftCards) ? store.giftCards : [];
   return store;
 }
 
@@ -492,6 +493,10 @@ function normalizeDiscountCode(code) {
   return String(code || "").trim().toUpperCase().replace(/\s+/g, "");
 }
 
+function normalizeGiftCardCode(code) {
+  return String(code || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
 function publicDiscount(discount) {
   if (!discount) return null;
   return {
@@ -543,6 +548,155 @@ function validateDiscount(store, code, experience, subtotalCents) {
   return { discount: { ...discount, code: normalizedCode, discountCents } };
 }
 
+function publicGiftCard(card) {
+  if (!card) return null;
+  return {
+    id: card.id,
+    code: card.code,
+    holderName: card.holderName || "",
+    holderEmail: card.holderEmail || "",
+    originalBalanceCents: money(card.originalBalanceCents),
+    balanceCents: money(card.balanceCents),
+    status: card.status || "active",
+    expiresAt: card.expiresAt || "",
+    note: card.note || "",
+    createdAt: card.createdAt || "",
+    transactions: Array.isArray(card.transactions) ? card.transactions : []
+  };
+}
+
+function validateGiftCard(store, code, amountCents = 0) {
+  const normalizedCode = normalizeGiftCardCode(code);
+  if (!normalizedCode) return { giftCard: null, giftCardCents: 0 };
+
+  const giftCard = store.giftCards.find(item => normalizeGiftCardCode(item.code) === normalizedCode);
+  if (!giftCard || giftCard.status === "void") return { error: "Gift card is not valid." };
+  if (giftCard.status === "inactive") return { error: "Gift card is not active yet." };
+  if (giftCard.expiresAt && new Date(giftCard.expiresAt).getTime() < Date.now()) {
+    return { error: "Gift card has expired." };
+  }
+
+  const balanceCents = money(giftCard.balanceCents);
+  if (balanceCents <= 0) return { error: "Gift card has no remaining balance." };
+
+  return {
+    giftCard,
+    giftCardCents: Math.min(balanceCents, Math.max(0, money(amountCents)))
+  };
+}
+
+function recordGiftCardRedemption(store, booking, giftCard, amountCents, source = "booking") {
+  const amount = Math.min(money(amountCents), money(giftCard.balanceCents));
+  if (!giftCard || amount <= 0) return null;
+
+  const now = new Date().toISOString();
+  giftCard.balanceCents = Math.max(0, money(giftCard.balanceCents) - amount);
+  giftCard.status = giftCard.balanceCents > 0 ? (giftCard.status || "active") : "redeemed";
+  giftCard.transactions = Array.isArray(giftCard.transactions) ? giftCard.transactions : [];
+  giftCard.transactions.push({
+    id: crypto.randomUUID(),
+    type: "redemption",
+    amountCents: -amount,
+    bookingId: booking.id,
+    source,
+    createdAt: now
+  });
+
+  const payment = {
+    id: crypto.randomUUID(),
+    bookingId: booking.id,
+    provider: "gift_card",
+    status: "paid",
+    currency: store.settings?.currency || "USD",
+    paymentMode: "gift_card",
+    amountCents: amount,
+    subtotalCents: amount,
+    taxCents: 0,
+    providerPaymentId: giftCard.code,
+    checkoutUrl: null,
+    squareLocationId: null,
+    createdAt: now,
+    updatedAt: now,
+    paidAt: now
+  };
+
+  store.payments.push(payment);
+  booking.paymentIds = Array.isArray(booking.paymentIds) ? booking.paymentIds : [];
+  booking.paymentIds.push(payment.id);
+  booking.giftCard = {
+    id: giftCard.id,
+    code: giftCard.code,
+    amountCents: amount
+  };
+  booking.giftCardCents = amount;
+  if (source !== "public_booking") {
+    booking.balanceCents = Math.max(0, money(booking.balanceCents) - amount);
+  }
+  return payment;
+}
+
+function refundGiftCardForBooking(store, booking, reason = "payment_failed") {
+  if (!booking?.giftCard?.id || !booking.giftCardCents) return;
+  const giftCard = store.giftCards.find(item => item.id === booking.giftCard.id);
+  if (!giftCard) return;
+  const amount = money(booking.giftCardCents);
+  const now = new Date().toISOString();
+  giftCard.balanceCents = money(giftCard.balanceCents) + amount;
+  giftCard.status = "active";
+  giftCard.transactions = Array.isArray(giftCard.transactions) ? giftCard.transactions : [];
+  giftCard.transactions.push({
+    id: crypto.randomUUID(),
+    type: "refund",
+    amountCents: amount,
+    bookingId: booking.id,
+    source: reason,
+    createdAt: now
+  });
+  booking.giftCardRefundedAt = now;
+}
+
+function giftCardFromPayload(payload, source = "admin") {
+  const now = new Date().toISOString();
+  const code = normalizeGiftCardCode(payload.code || crypto.randomBytes(4).toString("hex"));
+  const balanceCents = money(Number(payload.balanceCents ?? Math.round(Number(payload.balance || 0) * 100)));
+  if (!code) throw new Error("Gift card code is required.");
+  if (balanceCents <= 0) throw new Error("Gift card balance must be greater than $0.");
+
+  return {
+    id: crypto.randomUUID(),
+    code,
+    holderName: String(payload.holderName || "").trim(),
+    holderEmail: String(payload.holderEmail || "").trim(),
+    holderPhone: String(payload.holderPhone || "").trim(),
+    originalBalanceCents: money(Number(payload.originalBalanceCents ?? balanceCents)),
+    balanceCents,
+    status: payload.status || "active",
+    expiresAt: payload.expiresAt || "",
+    note: String(payload.note || "").trim(),
+    source,
+    createdAt: now,
+    updatedAt: now,
+    transactions: [{
+      id: crypto.randomUUID(),
+      type: source === "migration" ? "migration" : "issue",
+      amountCents: balanceCents,
+      note: String(payload.note || "").trim(),
+      createdAt: now
+    }]
+  };
+}
+
+function parseGiftCardCsv(text) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map(line => {
+      const [code, balance, holderName = "", holderEmail = "", holderPhone = "", note = ""] = line.split(",").map(item => item.trim());
+      return { code, balance: Number(balance || 0), holderName, holderEmail, holderPhone, note };
+    });
+}
+
 function calculateTotal(store, experience, guestCount, selectedAddOnIds = [], projectId = "", addOnItems = []) {
   const resource = getResource(store, experience.resourceId);
   const billableGuests = billableGuestCount(resource, experience, guestCount);
@@ -572,7 +726,7 @@ function calculateTax(store, subtotalCents) {
   return Math.round(money(subtotalCents) * rate / 10_000);
 }
 
-function pricingBreakdown(store, experience, guestCount, selectedAddOnIds = [], projectId = "", paymentMode = "reservation_fee", addOnItems = [], discount = null) {
+function pricingBreakdown(store, experience, guestCount, selectedAddOnIds = [], projectId = "", paymentMode = "reservation_fee", addOnItems = [], discount = null, giftCard = null) {
   const subtotalCents = calculateTotal(store, experience, guestCount, selectedAddOnIds, projectId, addOnItems);
   const discountCents = discountAmountForSubtotal(discount, subtotalCents);
   const discountedSubtotalCents = Math.max(0, subtotalCents - discountCents);
@@ -588,6 +742,8 @@ function pricingBreakdown(store, experience, guestCount, selectedAddOnIds = [], 
     : Math.min(reservationFeeSubtotalCents, discountedSubtotalCents);
   const amountDueNowTaxCents = calculateTax(store, amountDueNowSubtotalCents);
   const amountDueNowCents = amountDueNowSubtotalCents + amountDueNowTaxCents;
+  const giftCardCents = giftCard ? Math.min(money(giftCard.balanceCents), amountDueNowCents) : 0;
+  const paymentDueCents = Math.max(0, amountDueNowCents - giftCardCents);
 
   return {
     subtotalCents,
@@ -599,6 +755,8 @@ function pricingBreakdown(store, experience, guestCount, selectedAddOnIds = [], 
     amountDueNowSubtotalCents,
     amountDueNowTaxCents,
     amountDueNowCents,
+    giftCardCents,
+    paymentDueCents,
     balanceCents: Math.max(0, totalCents - amountDueNowCents)
   };
 }
@@ -630,7 +788,7 @@ function createCheckoutPayment(store, booking, breakdown) {
     status: "pending",
     currency: store.settings?.currency || "USD",
     paymentMode: booking.paymentMode,
-    amountCents: breakdown.amountDueNowCents,
+    amountCents: breakdown.paymentDueCents ?? breakdown.amountDueNowCents,
     subtotalCents: breakdown.amountDueNowSubtotalCents,
     taxCents: breakdown.amountDueNowTaxCents,
     providerPaymentId: null,
@@ -641,8 +799,10 @@ function createCheckoutPayment(store, booking, breakdown) {
   };
 }
 
-function recordExternalPayment(store, booking, source = "employee_pos") {
-  const amountCents = Math.max(0, Number(booking.balanceCents || booking.totalCents || 0));
+function recordExternalPayment(store, booking, source = "employee_pos", amountOverrideCents = null) {
+  const amountCents = Math.max(0, amountOverrideCents === null
+    ? Number(booking.balanceCents || booking.totalCents || 0)
+    : Number(amountOverrideCents || 0));
   const now = new Date().toISOString();
   const payment = {
     id: crypto.randomUUID(),
@@ -666,7 +826,7 @@ function recordExternalPayment(store, booking, source = "employee_pos") {
   booking.paymentIds = Array.isArray(booking.paymentIds) ? booking.paymentIds : [];
   booking.paymentIds.push(payment.id);
   booking.amountDueNowCents = Math.max(Number(booking.amountDueNowCents || 0), amountCents);
-  booking.balanceCents = 0;
+  booking.balanceCents = Math.max(0, Number(booking.balanceCents || 0) - amountCents);
   booking.paymentStatus = "paid";
   booking.status = ["pending_payment", "confirmed"].includes(booking.status) ? "paid" : booking.status;
   booking.paidAt = booking.paidAt || now;
@@ -785,6 +945,7 @@ async function handleApi(req, res, url) {
       bookings: store.bookings.sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt)),
       payments: store.payments,
       discounts: store.discounts,
+      giftCards: store.giftCards.map(publicGiftCard).sort((a, b) => a.code.localeCompare(b.code)),
       holds: activeHolds(store)
     });
   }
@@ -798,6 +959,59 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, { error: error.message });
     }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/gift-cards") {
+    try {
+      const payload = await parseBody(req);
+      const giftCard = giftCardFromPayload(payload, "admin");
+      if (store.giftCards.some(item => normalizeGiftCardCode(item.code) === giftCard.code)) {
+        return sendJson(res, 400, { error: "Gift card code already exists." });
+      }
+      store.giftCards.push(giftCard);
+      writeStore(store);
+      return sendJson(res, 201, { giftCard: publicGiftCard(giftCard) });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/gift-cards/import") {
+    try {
+      const payload = await parseBody(req);
+      const rows = Array.isArray(payload.cards) ? payload.cards : parseGiftCardCsv(payload.csv);
+      const existingCodes = new Set(store.giftCards.map(item => normalizeGiftCardCode(item.code)));
+      const created = [];
+      const skipped = [];
+      rows.forEach((row, index) => {
+        try {
+          const giftCard = giftCardFromPayload(row, "migration");
+          if (existingCodes.has(giftCard.code)) {
+            skipped.push({ row: index + 1, code: giftCard.code, reason: "Duplicate code" });
+            return;
+          }
+          existingCodes.add(giftCard.code);
+          store.giftCards.push(giftCard);
+          created.push(publicGiftCard(giftCard));
+        } catch (error) {
+          skipped.push({ row: index + 1, code: row.code || "", reason: error.message });
+        }
+      });
+      writeStore(store);
+      return sendJson(res, 201, { created, skipped });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/gift-cards/preview") {
+    const payload = await parseBody(req);
+    const result = validateGiftCard(store, payload.code, payload.amountCents);
+    if (result.error) return sendJson(res, 400, { error: result.error });
+    return sendJson(res, 200, {
+      giftCard: publicGiftCard(result.giftCard),
+      giftCardCents: result.giftCardCents
+    });
   }
 
   if (req.method === "POST" && url.pathname === "/api/discounts/preview") {
@@ -885,15 +1099,23 @@ async function handleApi(req, res, url) {
     const subtotalCents = calculateTotal(store, experience, guestCount, addOnIds, projectId, addOnItems);
     const discountResult = validateDiscount(store, payload.discountCode, experience, subtotalCents);
     if (discountResult.error) return sendJson(res, 400, { error: discountResult.error });
-    const breakdown = pricingBreakdown(store, experience, guestCount, addOnIds, projectId, "reservation_fee", addOnItems, discountResult.discount);
+    const preliminaryBreakdown = pricingBreakdown(store, experience, guestCount, addOnIds, projectId, "reservation_fee", addOnItems, discountResult.discount);
+    const giftCardResult = validateGiftCard(store, payload.giftCardCode, preliminaryBreakdown.totalCents);
+    if (giftCardResult.error) return sendJson(res, 400, { error: giftCardResult.error });
+    const breakdown = {
+      ...preliminaryBreakdown,
+      giftCardCents: giftCardResult.giftCardCents,
+      paymentDueCents: Math.max(0, preliminaryBreakdown.totalCents - giftCardResult.giftCardCents)
+    };
     const isPaidInPos = payload.paymentStatus === "paid";
     const now = new Date().toISOString();
+    const externalPaymentCents = isPaidInPos ? breakdown.paymentDueCents : 0;
 
     const booking = {
       id: crypto.randomUUID(),
-      status: isPaidInPos ? "paid" : "confirmed",
+      status: (isPaidInPos || breakdown.paymentDueCents === 0) ? "paid" : "confirmed",
       source: "employee",
-      paymentMode: isPaidInPos ? "external_pos" : "pay_in_store",
+      paymentMode: isPaidInPos ? "external_pos" : (breakdown.giftCardCents ? "gift_card" : "pay_in_store"),
       experienceId: experience.id,
       experienceName: experience.name,
       resourceId: experience.resourceId,
@@ -914,11 +1136,13 @@ async function handleApi(req, res, url) {
       reservationFeeCents: breakdown.reservationFeeSubtotalCents,
       amountDueNowSubtotalCents: 0,
       amountDueNowTaxCents: 0,
-      amountDueNowCents: isPaidInPos ? breakdown.totalCents : 0,
+      amountDueNowCents: breakdown.giftCardCents + externalPaymentCents,
       depositCents: 0,
-      balanceCents: isPaidInPos ? 0 : breakdown.totalCents,
-      paymentStatus: isPaidInPos ? "paid" : "pay_in_store",
+      balanceCents: breakdown.totalCents,
+      paymentStatus: (isPaidInPos || breakdown.paymentDueCents === 0) ? "paid" : "pay_in_store",
       paymentIds: [],
+      giftCardCents: breakdown.giftCardCents,
+      giftCard: null,
       waiverStatus: "not_sent",
       waiver: null,
       waivers: [],
@@ -932,7 +1156,14 @@ async function handleApi(req, res, url) {
       updatedAt: now
     };
 
-    if (isPaidInPos) recordExternalPayment(store, booking);
+    if (giftCardResult.giftCard && breakdown.giftCardCents > 0) {
+      recordGiftCardRedemption(store, booking, giftCardResult.giftCard, breakdown.giftCardCents, "employee_booking");
+    }
+    if (isPaidInPos && externalPaymentCents > 0) recordExternalPayment(store, booking, "employee_pos", externalPaymentCents);
+    if (booking.balanceCents <= 0) {
+      booking.paymentStatus = "paid";
+      booking.status = ["pending_payment", "confirmed"].includes(booking.status) ? "paid" : booking.status;
+    }
     if (discountResult.discount) {
       const storedDiscount = store.discounts.find(item => item.id === discountResult.discount.id);
       if (storedDiscount) storedDiscount.usedCount = Number(storedDiscount.usedCount || 0) + 1;
@@ -960,14 +1191,17 @@ async function handleApi(req, res, url) {
     const subtotalCents = calculateTotal(store, experience, guestCount, addOnIds, projectId);
     const discountResult = validateDiscount(store, payload.discountCode, experience, subtotalCents);
     if (discountResult.error) return sendJson(res, 400, { error: discountResult.error });
-    const breakdown = pricingBreakdown(store, experience, guestCount, addOnIds, projectId, paymentMode, [], discountResult.discount);
+    const preliminaryBreakdown = pricingBreakdown(store, experience, guestCount, addOnIds, projectId, paymentMode, [], discountResult.discount);
+    const giftCardResult = validateGiftCard(store, payload.giftCardCode, preliminaryBreakdown.amountDueNowCents);
+    if (giftCardResult.error) return sendJson(res, 400, { error: giftCardResult.error });
+    const breakdown = pricingBreakdown(store, experience, guestCount, addOnIds, projectId, paymentMode, [], discountResult.discount, giftCardResult.giftCard);
 
     const acceptedAt = new Date().toISOString();
     const booking = {
       id: crypto.randomUUID(),
-      status: breakdown.amountDueNowCents > 0 ? "pending_payment" : "paid",
+      status: breakdown.paymentDueCents > 0 ? "pending_payment" : "paid",
       source: "public",
-      paymentMode,
+      paymentMode: breakdown.giftCardCents ? `${paymentMode}_gift_card` : paymentMode,
       experienceId: experience.id,
       experienceName: experience.name,
       resourceId: experience.resourceId,
@@ -990,8 +1224,10 @@ async function handleApi(req, res, url) {
       amountDueNowCents: breakdown.amountDueNowCents,
       depositCents: breakdown.amountDueNowCents,
       balanceCents: breakdown.balanceCents,
-      paymentStatus: breakdown.amountDueNowCents > 0 ? "pending" : "paid",
+      paymentStatus: breakdown.paymentDueCents > 0 ? "pending" : "paid",
       paymentIds: [],
+      giftCardCents: breakdown.giftCardCents,
+      giftCard: null,
       waiverStatus: payload.waiverAccepted ? "accepted_online" : "not_sent",
       waiver: payload.waiver ? {
         ...payload.waiver,
@@ -1011,7 +1247,10 @@ async function handleApi(req, res, url) {
     };
 
     let payment = null;
-    if (breakdown.amountDueNowCents > 0) {
+    if (giftCardResult.giftCard && breakdown.giftCardCents > 0) {
+      recordGiftCardRedemption(store, booking, giftCardResult.giftCard, breakdown.giftCardCents, "public_booking");
+    }
+    if (breakdown.paymentDueCents > 0) {
       payment = createCheckoutPayment(store, booking, breakdown);
       booking.paymentIds.push(payment.id);
       store.payments.push(payment);
@@ -1082,6 +1321,7 @@ async function handleApi(req, res, url) {
     payment.status = "failed";
     payment.updatedAt = now;
     if (booking) {
+      refundGiftCardForBooking(store, booking, "mock_payment_failed");
       booking.status = "failed";
       booking.paymentStatus = "failed";
       booking.updatedAt = now;
