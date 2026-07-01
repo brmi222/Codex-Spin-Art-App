@@ -34,78 +34,88 @@
           Date
           <input type="date" id="employeeDate">
         </label>
+        <button type="button" class="employee-new-booking-button" id="openEmployeeBooking">Book appointment</button>
       </section>
 
-      <section class="employee-booking-card" aria-label="Schedule appointment">
-        <div>
-          <p class="eyebrow">Walk-ins & phone calls</p>
-          <h2>Schedule appointment</h2>
-        </div>
-        <form class="employee-booking-form" id="employeeBookingForm">
-          <label>
-            Experience
-            <select id="employeeExperienceInput" required></select>
-          </label>
-          <label>
-            Date
-            <input type="date" id="employeeAppointmentDate" required>
-          </label>
-          <label>
-            Time
-            <select id="employeeAppointmentTime" required></select>
-          </label>
-          <label>
-            Guests
-            <input type="number" id="employeeGuestInput" min="1" value="1" required>
-          </label>
-          <label>
-            Payment
-            <select id="employeePaymentInput">
-              <option value="pay_in_store">Balance due</option>
-              <option value="paid">Take payment now</option>
-            </select>
-          </label>
-          <label>
-            Customer name
-            <input type="text" id="employeeNameInput" autocomplete="name" required>
-          </label>
-          <label>
-            Phone
-            <input type="tel" id="employeePhoneInput" autocomplete="tel">
-          </label>
-          <label>
-            Email
-            <input type="email" id="employeeEmailInput" autocomplete="email">
-          </label>
-          <label>
-            Notes
-            <input type="text" id="employeeNotesInput" placeholder="Walk-in, phone booking, birthday name, etc.">
-          </label>
-          <details class="employee-addon-drawer" id="employeeAddonDrawer">
-            <summary>Add-ons <span id="employeeAddonSummary">None selected</span></summary>
-            <div class="employee-addon-list" id="employeeAddonList"></div>
-          </details>
-          <div class="promo-row employee-promo-row">
-            <label>
-              Discount code
-              <input type="text" id="employeeDiscountCodeInput" autocomplete="off" placeholder="Optional">
-            </label>
-            <button type="button" id="employeeApplyDiscountButton">Apply</button>
-            <p class="status" id="employeeDiscountStatus" role="status"></p>
+      <dialog class="employee-booking-modal" id="employeeBookingDialog" aria-label="Schedule appointment">
+        <section class="employee-booking-card">
+          <div class="employee-modal-header">
+            <div>
+              <p class="eyebrow">Walk-ins & phone calls</p>
+              <h2>Schedule appointment</h2>
+            </div>
+            <button type="button" class="employee-modal-close" id="closeEmployeeBooking" aria-label="Close booking form">Close</button>
           </div>
-          <div class="promo-row employee-promo-row">
+          <form class="employee-booking-form" id="employeeBookingForm">
             <label>
-              Gift card
-              <input type="text" id="employeeGiftCardCodeInput" autocomplete="off" placeholder="Optional">
+              Experience
+              <select id="employeeExperienceInput" required></select>
             </label>
-            <button type="button" id="employeeApplyGiftCardButton">Apply</button>
-            <p class="status" id="employeeGiftCardStatus" role="status"></p>
-          </div>
-          <div class="employee-payment-summary" id="employeePaymentSummary"></div>
-          <button type="submit" id="employeeSubmitButton">Add to schedule</button>
-          <p class="status" id="employeeBookingStatus" role="status"></p>
-        </form>
-      </section>
+            <label>
+              Date
+              <input type="date" id="employeeAppointmentDate" required>
+            </label>
+            <label>
+              Time
+              <select id="employeeAppointmentTime" required></select>
+            </label>
+            <label>
+              Guests
+              <input type="number" id="employeeGuestInput" min="1" value="1" required>
+            </label>
+            <label>
+              Customer name
+              <input type="text" id="employeeNameInput" autocomplete="name" required>
+            </label>
+            <label>
+              Phone
+              <input type="tel" id="employeePhoneInput" autocomplete="tel">
+            </label>
+            <label>
+              Email
+              <input type="email" id="employeeEmailInput" autocomplete="email">
+            </label>
+            <label>
+              Notes
+              <input type="text" id="employeeNotesInput" placeholder="Walk-in, phone booking, birthday name, etc.">
+            </label>
+            <details class="employee-addon-drawer" id="employeeAddonDrawer">
+              <summary>Add-ons <span id="employeeAddonSummary">None selected</span></summary>
+              <div class="employee-addon-list" id="employeeAddonList"></div>
+            </details>
+            <div class="promo-row employee-promo-row">
+              <label>
+                Discount code
+                <input type="text" id="employeeDiscountCodeInput" autocomplete="off" placeholder="Optional">
+              </label>
+              <button type="button" id="employeeApplyDiscountButton">Apply</button>
+              <p class="status" id="employeeDiscountStatus" role="status"></p>
+            </div>
+            <div class="promo-row employee-promo-row">
+              <label>
+                Gift card
+                <input type="text" id="employeeGiftCardCodeInput" autocomplete="off" placeholder="Optional">
+              </label>
+              <button type="button" id="employeeApplyGiftCardButton">Apply</button>
+              <p class="status" id="employeeGiftCardStatus" role="status"></p>
+            </div>
+            <div class="employee-schedule-row">
+              <label>
+                Payment
+                <select id="employeePaymentInput" required>
+                  <option value="">Select payment</option>
+                  <option value="reservation_fee">Reservation fee</option>
+                  <option value="pay_full">Full balance</option>
+                  <option value="walk_in_end">Walk-in pay at end</option>
+                </select>
+              </label>
+              <button type="submit" id="employeeSubmitButton">Schedule</button>
+            </div>
+            <div class="employee-payment-summary" id="employeePaymentSummary"></div>
+            <p class="status" id="employeeBookingStatus" role="status"></p>
+          </form>
+        </section>
+      </dialog>
 
       <section class="employee-layout" aria-label="Employee calendar">
         <div class="employee-calendar-shell">

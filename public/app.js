@@ -1714,6 +1714,20 @@ function setDefaultEmployeeDate() {
   if (appointmentDate) appointmentDate.value = today;
 }
 
+function openEmployeeBookingDialog() {
+  const dialog = el("employeeBookingDialog");
+  if (!dialog) return;
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "");
+}
+
+function closeEmployeeBookingDialog() {
+  const dialog = el("employeeBookingDialog");
+  if (!dialog) return;
+  if (typeof dialog.close === "function") dialog.close();
+  else dialog.removeAttribute("open");
+}
+
 function employeeFormExperience() {
   const experienceId = el("employeeExperienceInput")?.value;
   return state.config.experiences.find(experience => experience.id === experienceId);
@@ -1731,7 +1745,8 @@ function selectedEmployeeAddOnItems() {
 function employeeEstimateBreakdown() {
   const experience = employeeFormExperience();
   const guests = Number(el("employeeGuestInput")?.value || 0);
-  if (!experience) return { subtotal: 0, tax: 0, total: 0 };
+  const paymentChoice = el("employeePaymentInput")?.value || "";
+  if (!experience) return { subtotal: 0, tax: 0, total: 0, dueNow: 0, giftCard: 0, paymentDue: 0, balance: 0 };
 
   const capacityUnits = capacityUnitsForExperience(experience, guests);
   const billableGuests = billableGuestCount(experience, guests);
@@ -1750,15 +1765,30 @@ function employeeEstimateBreakdown() {
   const discountedSubtotal = Math.max(0, subtotal - discount);
   const tax = calculateTax(discountedSubtotal);
   const total = discountedSubtotal + tax;
-  const giftCard = Math.min(Number(state.employeeGiftCard?.balanceCents || 0), total);
+  const reservationSubtotal = isPerGuest(experience)
+    ? Number(experience.depositCents || 0) * billableGuests
+    : Number(experience.depositCents || 0);
+  const dueNowSubtotal = paymentChoice === "pay_full"
+    ? discountedSubtotal
+    : paymentChoice === "reservation_fee"
+      ? Math.min(reservationSubtotal, discountedSubtotal)
+      : 0;
+  const dueNowTax = calculateTax(dueNowSubtotal);
+  const dueNow = dueNowSubtotal + dueNowTax;
+  const giftCard = Math.min(Number(state.employeeGiftCard?.balanceCents || 0), dueNow);
   return {
     subtotal,
     discount,
     discountedSubtotal,
     tax,
     total,
+    reservationSubtotal,
+    dueNowSubtotal,
+    dueNowTax,
+    dueNow,
     giftCard,
-    paymentDue: Math.max(0, total - giftCard)
+    paymentDue: Math.max(0, dueNow - giftCard),
+    balance: Math.max(0, total - dueNow)
   };
 }
 
@@ -1770,13 +1800,24 @@ function updateEmployeePaymentSummary() {
 
   const breakdown = employeeEstimateBreakdown();
   const addOnCount = selectedEmployeeAddOnItems().reduce((sum, item) => sum + item.quantity, 0);
-  const isPaidNow = paymentInput.value === "paid";
+  const paymentChoice = paymentInput.value;
+  const paymentLabel = paymentChoice === "reservation_fee"
+    ? "reservation fee"
+    : paymentChoice === "pay_full"
+      ? "full balance"
+      : paymentChoice === "walk_in_end"
+        ? "walk-in pay at end"
+        : "payment option";
   target.innerHTML = `
-    <strong>${dollars(breakdown.paymentDue)} ${isPaidNow ? "to collect" : "balance after gift card"}</strong>
+    <strong>${dollars(breakdown.paymentDue)} to collect now</strong>
     <span>${dollars(breakdown.subtotal)} subtotal${breakdown.discount ? ` - ${dollars(breakdown.discount)} discount` : ""} + ${dollars(breakdown.tax)} tax${breakdown.giftCard ? ` - ${dollars(breakdown.giftCard)} gift card` : ""}${addOnCount ? ` | ${addOnCount} add-on${addOnCount === 1 ? "" : "s"}` : ""}</span>
-    <span>${isPaidNow ? "Collect payment in POS now. This booking will be marked paid." : "Booking will stay open with a balance due."}</span>
+    <span>${paymentChoice ? `${paymentLabel} selected. ${dollars(breakdown.balance)} balance remains after scheduling.` : "Choose how payment will be handled before scheduling."}</span>
   `;
-  submitButton.textContent = isPaidNow ? `Take payment & add ${dollars(breakdown.paymentDue)}` : "Add to schedule";
+  submitButton.textContent = paymentChoice === "walk_in_end"
+    ? "Schedule"
+    : paymentChoice
+      ? `Schedule + collect ${dollars(breakdown.paymentDue)}`
+      : "Schedule";
 }
 
 async function applyEmployeeDiscountCode() {
@@ -1799,7 +1840,7 @@ async function applyEmployeeDiscountCode() {
         guestCount: Number(el("employeeGuestInput").value),
         addOnItems: selectedEmployeeAddOnItems(),
         projectId: (experience.projectOptions || [])[0]?.id || "",
-        paymentMode: "pay_full"
+        paymentMode: el("employeePaymentInput")?.value === "pay_full" ? "pay_full" : "reservation_fee"
       })
     });
     state.employeeDiscount = result.discount;
@@ -1830,12 +1871,18 @@ async function applyEmployeeGiftCardCode() {
   }
 
   const breakdown = employeeEstimateBreakdown();
+  if (breakdown.dueNow <= 0) {
+    state.employeeGiftCard = null;
+    setText("employeeGiftCardStatus", "Gift cards can be applied when collecting the reservation fee or full balance.");
+    updateEmployeePaymentSummary();
+    return;
+  }
   try {
     const result = await api("/api/gift-cards/preview", {
       method: "POST",
       body: JSON.stringify({
         code,
-        amountCents: breakdown.total
+        amountCents: breakdown.dueNow
       })
     });
     state.employeeGiftCard = result.giftCard;
@@ -1986,6 +2033,7 @@ function renderEmployeeCalendar(day) {
       if (el("employeeAppointmentDate")) el("employeeAppointmentDate").value = day.date;
       if (experience && el("employeeExperienceInput")) {
         el("employeeExperienceInput").value = experience.id;
+        openEmployeeBookingDialog();
         syncEmployeeGuestBounds();
         loadEmployeeAppointmentAvailability().then(() => {
           if (el("employeeAppointmentTime")) el("employeeAppointmentTime").value = button.dataset.time;
@@ -2224,6 +2272,11 @@ async function submitEmployeeAppointment(event) {
   setText("employeeBookingStatus", "Adding appointment...");
 
   try {
+    const paymentChoice = el("employeePaymentInput")?.value;
+    if (!paymentChoice) {
+      setText("employeeBookingStatus", "Choose reservation fee, full balance, or walk-in pay at end before scheduling.");
+      return;
+    }
     const payload = {
       experienceId: experience.id,
       date: el("employeeAppointmentDate").value,
@@ -2234,7 +2287,8 @@ async function submitEmployeeAppointment(event) {
         phone: el("employeePhoneInput").value,
         email: el("employeeEmailInput").value
       },
-      notes: el("employeeNotesInput").value
+      notes: el("employeeNotesInput").value,
+      paymentChoice
     };
     const addOnItems = selectedEmployeeAddOnItems();
     if (addOnItems.length) payload.addOnItems = addOnItems;
@@ -2244,7 +2298,7 @@ async function submitEmployeeAppointment(event) {
     if (state.employeeGiftCard?.code || el("employeeGiftCardCodeInput")?.value.trim()) {
       payload.giftCardCode = state.employeeGiftCard?.code || el("employeeGiftCardCodeInput").value.trim();
     }
-    if (el("employeePaymentInput")?.value === "paid") {
+    if (paymentChoice === "reservation_fee" || paymentChoice === "pay_full") {
       payload.paymentStatus = "paid";
     }
 
@@ -2258,6 +2312,7 @@ async function submitEmployeeAppointment(event) {
     setDefaultEmployeeDate();
     hydrateEmployeeBookingForm();
     renderEmployeeAddOns();
+    closeEmployeeBookingDialog();
     state.employeeDiscount = null;
     state.employeeGiftCard = null;
     if (el("employeeDiscountCodeInput")) el("employeeDiscountCodeInput").value = "";
@@ -2417,6 +2472,11 @@ async function initEmployee() {
     updateEmployeePaymentSummary();
   });
   el("employeePaymentInput").addEventListener("change", updateEmployeePaymentSummary);
+  el("openEmployeeBooking").addEventListener("click", openEmployeeBookingDialog);
+  el("closeEmployeeBooking").addEventListener("click", closeEmployeeBookingDialog);
+  el("employeeBookingDialog").addEventListener("click", event => {
+    if (event.target === el("employeeBookingDialog")) closeEmployeeBookingDialog();
+  });
   el("employeeApplyDiscountButton").addEventListener("click", applyEmployeeDiscountCode);
   el("employeeApplyGiftCardButton").addEventListener("click", applyEmployeeGiftCardCode);
   el("employeeDiscountCodeInput").addEventListener("input", () => {

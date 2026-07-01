@@ -2191,23 +2191,60 @@ body[data-page="landing"] .faq-item {
   color: rgba(255, 255, 255, 0.78);
 }
 
+.employee-new-booking-button {
+  min-height: 44px;
+  padding: 0.72rem 1rem;
+  color: #071424;
+  background: #8fe8ea;
+}
+
+.employee-booking-modal {
+  width: min(1120px, calc(100vw - 28px));
+  max-height: min(88vh, 860px);
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  padding: 0;
+  color: var(--white);
+  background: #182031;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.48);
+}
+
+.employee-booking-modal::backdrop {
+  background: rgba(3, 9, 17, 0.72);
+  backdrop-filter: blur(5px);
+}
+
 .employee-booking-card {
   display: grid;
   grid-template-columns: minmax(210px, 0.38fr) minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
-  max-width: 1420px;
-  margin: 0 auto 1rem;
+  max-width: none;
+  margin: 0;
   padding: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.18);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .employee-booking-card h2 {
   margin: 0;
   font-size: clamp(1.45rem, 2.4vw, 2.25rem);
+}
+
+.employee-modal-header {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.employee-modal-close {
+  width: fit-content;
+  min-height: 38px;
+  padding: 0.55rem 0.8rem;
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .employee-booking-form {
@@ -2231,6 +2268,18 @@ body[data-page="landing"] .faq-item {
   margin: 0;
   align-self: center;
   color: #8fe8ea;
+}
+
+.employee-schedule-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.35fr) minmax(180px, auto);
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.employee-schedule-row button {
+  min-height: 48px;
 }
 
 .employee-addon-drawer,
@@ -2704,6 +2753,10 @@ body[data-page="landing"] .faq-item {
   }
 
   .employee-booking-form {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-schedule-row {
     grid-template-columns: 1fr;
   }
 

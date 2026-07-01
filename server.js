@@ -951,6 +951,10 @@ function validateEmployeeBookingPayload(store, payload) {
     return "Customer name is required.";
   }
 
+  if (!["reservation_fee", "pay_full", "walk_in_end"].includes(payload.paymentChoice)) {
+    return "Choose reservation fee, full balance, or walk-in pay at end before scheduling.";
+  }
+
   const allowedAddOns = new Set(experience.addOnIds || []);
   const addOnItems = Array.isArray(payload.addOnItems) ? payload.addOnItems : [];
   for (const item of addOnItems) {
@@ -1192,23 +1196,30 @@ async function handleApi(req, res, url) {
     const subtotalCents = calculateTotal(store, experience, guestCount, addOnIds, projectId, addOnItems);
     const discountResult = validateDiscount(store, payload.discountCode, experience, subtotalCents);
     if (discountResult.error) return sendJson(res, 400, { error: discountResult.error });
-    const preliminaryBreakdown = pricingBreakdown(store, experience, guestCount, addOnIds, projectId, "reservation_fee", addOnItems, discountResult.discount);
-    const giftCardResult = validateGiftCard(store, payload.giftCardCode, preliminaryBreakdown.totalCents);
+    const paymentChoice = ["reservation_fee", "pay_full", "walk_in_end"].includes(payload.paymentChoice)
+      ? payload.paymentChoice
+      : "walk_in_end";
+    const paymentMode = paymentChoice === "pay_full" ? "pay_full" : "reservation_fee";
+    const preliminaryBreakdown = pricingBreakdown(store, experience, guestCount, addOnIds, projectId, paymentMode, addOnItems, discountResult.discount);
+    const collectNowCents = paymentChoice === "walk_in_end" ? 0 : preliminaryBreakdown.amountDueNowCents;
+    const giftCardResult = validateGiftCard(store, payload.giftCardCode, collectNowCents);
     if (giftCardResult.error) return sendJson(res, 400, { error: giftCardResult.error });
     const breakdown = {
       ...preliminaryBreakdown,
       giftCardCents: giftCardResult.giftCardCents,
-      paymentDueCents: Math.max(0, preliminaryBreakdown.totalCents - giftCardResult.giftCardCents)
+      amountDueNowCents: collectNowCents,
+      paymentDueCents: Math.max(0, collectNowCents - giftCardResult.giftCardCents),
+      balanceCents: Math.max(0, preliminaryBreakdown.totalCents - collectNowCents)
     };
-    const isPaidInPos = payload.paymentStatus === "paid";
+    const isPaidInPos = payload.paymentStatus === "paid" && paymentChoice !== "walk_in_end";
     const now = new Date().toISOString();
     const externalPaymentCents = isPaidInPos ? breakdown.paymentDueCents : 0;
 
     const booking = {
       id: crypto.randomUUID(),
-      status: (isPaidInPos || breakdown.paymentDueCents === 0) ? "paid" : "confirmed",
+      status: "confirmed",
       source: "employee",
-      paymentMode: isPaidInPos ? "external_pos" : (breakdown.giftCardCents ? "gift_card" : "pay_in_store"),
+      paymentMode: paymentChoice,
       experienceId: experience.id,
       experienceName: experience.name,
       resourceId: experience.resourceId,
@@ -1227,12 +1238,12 @@ async function handleApi(req, res, url) {
       taxCents: breakdown.taxCents,
       totalCents: breakdown.totalCents,
       reservationFeeCents: breakdown.reservationFeeSubtotalCents,
-      amountDueNowSubtotalCents: 0,
-      amountDueNowTaxCents: 0,
+      amountDueNowSubtotalCents: paymentChoice === "walk_in_end" ? 0 : breakdown.amountDueNowSubtotalCents,
+      amountDueNowTaxCents: paymentChoice === "walk_in_end" ? 0 : breakdown.amountDueNowTaxCents,
       amountDueNowCents: breakdown.giftCardCents + externalPaymentCents,
       depositCents: 0,
       balanceCents: breakdown.totalCents,
-      paymentStatus: (isPaidInPos || breakdown.paymentDueCents === 0) ? "paid" : "pay_in_store",
+      paymentStatus: "pay_in_store",
       paymentIds: [],
       giftCardCents: breakdown.giftCardCents,
       giftCard: null,
