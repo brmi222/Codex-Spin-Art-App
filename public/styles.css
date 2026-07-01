@@ -1079,6 +1079,17 @@ p {
   gap: 1rem;
 }
 
+.booking-form .form-header {
+  position: sticky;
+  top: 74px;
+  z-index: 10;
+  margin: -1.2rem -1.2rem 1rem;
+  padding: 1rem 1.2rem;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(14px);
+}
+
 .price-pill {
   min-width: 112px;
   border-radius: 999px;
@@ -1276,6 +1287,30 @@ textarea {
   color: #5c3440;
   font-size: 0.88rem;
   line-height: 1.45;
+}
+
+.waiver-check-optional {
+  border-color: var(--line);
+  background: #f7f8fb;
+}
+
+.waiver-check-optional span {
+  color: var(--muted);
+}
+
+.waiver-signature-field {
+  max-width: 460px;
+}
+
+.checkout-actions {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px);
+  justify-content: end;
+  margin-top: 1rem;
+}
+
+.checkout-actions label {
+  margin-top: 0;
 }
 
 .summary-row {
@@ -2769,6 +2804,11 @@ body[data-page="landing"] .faq-item {
 
   .choice-game-shell {
     grid-template-columns: 1fr;
+  }
+
+  .checkout-actions {
+    grid-template-columns: 1fr;
+    justify-content: stretch;
   }
 
   .choice-wheel-wrap {

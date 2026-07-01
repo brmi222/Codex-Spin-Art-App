@@ -31,6 +31,11 @@ const shortTime = iso => new Intl.DateTimeFormat("en-US", {
 }).format(new Date(iso));
 
 const el = id => document.getElementById(id);
+const escapeAttr = value => String(value || "")
+  .replaceAll("&", "&amp;")
+  .replaceAll("\"", "&quot;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;");
 
 const heroActionWords = [
   { label: "Pour", color: "#f6c445" },
@@ -975,14 +980,17 @@ function renderWaiverFields() {
   }
 
   const guestCount = Math.max(1, Number(el("guestInput")?.value || experience.minGuests || 1));
+  const bookingName = el("nameInput")?.value.trim() || "";
+  const bookingNameAttr = escapeAttr(bookingName);
   const participantRows = Array.from({ length: guestCount }, (_, index) => {
     const number = index + 1;
+    const prefillName = index === 0 ? bookingNameAttr : "";
     return `
       <article class="participant-row" data-participant-row="${index}">
         <strong>${number}</strong>
         <label>
           Participant name
-          <input type="text" data-participant-field="name" autocomplete="name" required>
+          <input type="text" data-participant-field="name" data-autofill-booking-name="${index === 0 ? "true" : "false"}" data-last-autofill="${index === 0 ? bookingNameAttr : ""}" autocomplete="name" value="${prefillName}" placeholder="${index === 0 ? "Uses booking name" : "Guest name"}" required>
         </label>
         <label>
           Type
@@ -1009,23 +1017,17 @@ function renderWaiverFields() {
     <div class="participant-list">
       ${participantRows}
     </div>
-    <div class="field-grid waiver-grid">
-      <label>
-        Responsible signer
-        <input type="text" id="waiverSignerInput" autocomplete="name" required>
-      </label>
-      <label>
-        Type full name as signature
-        <input type="text" id="waiverSignatureInput" required>
-      </label>
-    </div>
+    <label class="waiver-signature-field">
+      Type full name as signature
+      <input type="text" id="waiverSignatureInput" autocomplete="name" data-autofill-booking-name="true" data-last-autofill="${bookingNameAttr}" value="${bookingNameAttr}" required>
+    </label>
     <label class="waiver-check">
       <input type="checkbox" id="waiverRiskInput" required>
       <span>I acknowledge the activity risks and agree for myself and/or the listed participants to participate safely.</span>
     </label>
-    <label class="waiver-check">
+    <label class="waiver-check waiver-check-optional">
       <input type="checkbox" id="waiverPhotoInput">
-      <span>Spin Art Raleigh may use photos or videos from this visit for marketing. I can ask staff not to photograph our group.</span>
+      <span><strong>Optional photo release.</strong> Spin Art Raleigh may use photos or videos from this visit for marketing. Leave unchecked if you do not want this.</span>
     </label>
   `;
 
@@ -1044,6 +1046,17 @@ function renderWaiverFields() {
   });
 }
 
+function syncWaiverNamesFromBooking() {
+  const bookingName = el("nameInput")?.value.trim() || "";
+  if (!bookingName) return;
+  document.querySelectorAll("[data-autofill-booking-name='true']").forEach(input => {
+    if (!input.value.trim() || input.dataset.lastAutofill === input.value) {
+      input.value = bookingName;
+      input.dataset.lastAutofill = bookingName;
+    }
+  });
+}
+
 function participantWaivers() {
   const participants = [...document.querySelectorAll("[data-participant-row]")].map(card => {
     const value = field => card.querySelector(`[data-participant-field='${field}']`)?.value.trim() || "";
@@ -1056,7 +1069,7 @@ function participantWaivers() {
 
   return {
     type: "participant_list",
-    signerName: el("waiverSignerInput")?.value.trim() || "",
+    signerName: el("waiverSignatureInput")?.value.trim() || el("nameInput")?.value.trim() || "",
     signature: el("waiverSignatureInput")?.value.trim() || "",
     riskAccepted: Boolean(el("waiverRiskInput")?.checked),
     photoReleaseAccepted: Boolean(el("waiverPhotoInput")?.checked),
@@ -2545,6 +2558,7 @@ async function initBooking() {
     updatePrice();
     renderWaiverFields();
   });
+  el("nameInput").addEventListener("input", syncWaiverNamesFromBooking);
   el("paymentMode").addEventListener("change", () => {
     clearAppliedDiscount();
     clearAppliedGiftCard();

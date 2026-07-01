@@ -70,13 +70,6 @@
               <input type="number" id="guestInput" min="1" value="1" required>
             </label>
             <label>
-              Payment
-              <select id="paymentMode">
-                <option value="reservation_fee">Reservation fee now, art in store</option>
-                <option value="pay_full">Pay all up front</option>
-              </select>
-            </label>
-            <label>
               Occasion
               <select id="occasionInput"></select>
             </label>
@@ -134,6 +127,16 @@
             <legend>Waiver</legend>
             <div id="waiverFields"></div>
           </fieldset>
+
+          <div class="checkout-actions">
+            <label>
+              Payment
+              <select id="paymentMode">
+                <option value="reservation_fee">Reservation fee now, art in store</option>
+                <option value="pay_full">Pay all up front</option>
+              </select>
+            </label>
+          </div>
 
           <div class="summary-row">
             <span id="policyText">Cancellation policy loading...</span>
