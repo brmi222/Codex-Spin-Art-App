@@ -15,7 +15,12 @@ const {
   publicStaffUser,
   staffCount
 } = require("./lib/auth");
-const { createSquarePaymentLink, isSquareConfigured } = require("./lib/squarePayments");
+const {
+  createSquareCardPayment,
+  createSquarePaymentLink,
+  isSquareConfigured,
+  isSquareEmbeddedConfigured
+} = require("./lib/squarePayments");
 
 const PORT = Number(process.env.PORT || 4280);
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -30,6 +35,7 @@ const PAYMENT_PROVIDER = process.env.PAYMENT_PROVIDER || "mock";
 const SQUARE_APP_ID = process.env.SQUARE_APP_ID || "";
 const SQUARE_LOCATION_ID = process.env.SQUARE_LOCATION_ID || "";
 const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN || "";
+const SQUARE_ENVIRONMENT = process.env.SQUARE_ENVIRONMENT || "sandbox";
 const SQUARE_WEBHOOK_SIGNATURE_KEY = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY || "";
 const DEFAULT_TAX_RATE_BPS = 725;
 const APPOINTMENT_MINUTES = 60;
@@ -294,7 +300,9 @@ function publicStore(store) {
       square: {
         appId: SQUARE_APP_ID,
         locationId: SQUARE_LOCATION_ID,
-        isConfigured: isSquareConfigured()
+        isConfigured: isSquareConfigured(),
+        isEmbeddedConfigured: isSquareEmbeddedConfigured(),
+        environment: SQUARE_ENVIRONMENT
       }
     },
     site: store.site,
@@ -806,6 +814,7 @@ function publicPayment(payment) {
     taxCents: payment.taxCents,
     currency: payment.currency,
     checkoutUrl: payment.checkoutUrl || null,
+    checkoutMode: payment.checkoutMode || null,
     createdAt: payment.createdAt,
     paidAt: payment.paidAt || null
   };
@@ -826,12 +835,13 @@ async function createCheckoutPayment(store, booking, breakdown, req) {
     taxCents: breakdown.amountDueNowTaxCents,
     providerPaymentId: null,
     checkoutUrl: provider === "mock" ? null : null,
+    checkoutMode: provider === "square" && isSquareEmbeddedConfigured() ? "embedded" : provider === "square" ? "hosted" : "mock",
     squareLocationId: provider === "square" ? SQUARE_LOCATION_ID : null,
     createdAt: now,
     updatedAt: now
   };
 
-  if (provider === "square") {
+  if (provider === "square" && payment.checkoutMode === "hosted") {
     const origin = `${req.headers["x-forwarded-proto"] || "http"}://${req.headers.host}`;
     await createSquarePaymentLink({ payment, booking, business: store.business, origin });
   }
@@ -1433,6 +1443,47 @@ async function handleApi(req, res, url) {
 
     await writeStore(store);
     return sendJson(res, 200, { booking, payment: publicPayment(payment) });
+  }
+
+  if (req.method === "POST" && url.pathname.startsWith("/api/payments/") && url.pathname.endsWith("/square-card")) {
+    const paymentId = url.pathname.split("/")[3];
+    const payment = store.payments.find(item => item.id === paymentId);
+    if (!payment) return sendJson(res, 404, { error: "Payment not found." });
+    if (payment.provider !== "square") return sendJson(res, 400, { error: "This payment is not using Square." });
+    if (payment.status === "paid") return sendJson(res, 200, { booking: store.bookings.find(item => item.id === payment.bookingId), payment: publicPayment(payment) });
+
+    const booking = store.bookings.find(item => item.id === payment.bookingId);
+    if (!booking) return sendJson(res, 404, { error: "Booking not found." });
+
+    const payload = await parseBody(req);
+    try {
+      await createSquareCardPayment({
+        payment,
+        booking,
+        sourceId: payload.sourceId
+      });
+
+      const now = new Date().toISOString();
+      payment.status = "paid";
+      payment.paidAt = now;
+      payment.updatedAt = now;
+      booking.status = "paid";
+      booking.paymentStatus = "paid";
+      booking.paidAt = now;
+      booking.updatedAt = now;
+
+      await writeStore(store);
+      return sendJson(res, 200, { booking, payment: publicPayment(payment) });
+    } catch (error) {
+      payment.status = "pending";
+      payment.updatedAt = new Date().toISOString();
+      payment.lastError = error.message || "Square payment failed.";
+      booking.paymentStatus = "pending";
+      booking.status = "pending_payment";
+      booking.updatedAt = payment.updatedAt;
+      await writeStore(store);
+      return sendJson(res, error.status || 502, { error: error.message || "Square payment failed." });
+    }
   }
 
   if (req.method === "POST" && url.pathname === "/api/square/webhook") {

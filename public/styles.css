@@ -1350,7 +1350,8 @@ textarea {
 }
 
 .payment-panel {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
@@ -1359,6 +1360,24 @@ textarea {
   border: 1px solid rgba(255, 79, 18, 0.28);
   border-radius: 8px;
   background: #fff7f3;
+}
+
+.square-checkout {
+  width: min(100%, 390px);
+  display: grid;
+  gap: 0.7rem;
+}
+
+.square-card-container {
+  min-height: 90px;
+  border: 1px solid rgba(10, 23, 42, 0.18);
+  border-radius: 8px;
+  background: #fff;
+  padding: 0.75rem;
+}
+
+.square-checkout .status {
+  font-size: 0.86rem;
 }
 
 .payment-panel[hidden] {

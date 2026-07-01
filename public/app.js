@@ -5,7 +5,9 @@ const state = {
   appliedDiscount: null,
   appliedGiftCard: null,
   employeeDiscount: null,
-  employeeGiftCard: null
+  employeeGiftCard: null,
+  squareCard: null,
+  squareCardPaymentId: null
 };
 
 const dollars = cents => new Intl.NumberFormat("en-US", {
@@ -107,6 +109,41 @@ async function api(path, options = {}) {
   }
   if (!response.ok) throw new Error(payload.error || "Request failed");
   return payload;
+}
+
+function squareScriptUrl() {
+  const provider = state.config?.settings?.paymentProvider;
+  const square = state.config?.settings?.square;
+  if (provider !== "square" || !square?.isEmbeddedConfigured) return "";
+  return square.environment === "production"
+    ? "https://web.squarecdn.com/v1/square.js"
+    : "https://sandbox.web.squarecdn.com/v1/square.js";
+}
+
+function loadScriptOnce(src) {
+  if (!src) return Promise.reject(new Error("Script URL is missing."));
+  const existing = document.querySelector(`script[src="${src}"]`);
+  if (existing) {
+    return existing.dataset.loaded === "true"
+      ? Promise.resolve()
+      : new Promise((resolve, reject) => {
+          existing.addEventListener("load", resolve, { once: true });
+          existing.addEventListener("error", reject, { once: true });
+        });
+  }
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.dataset.loaded = "false";
+    script.addEventListener("load", () => {
+      script.dataset.loaded = "true";
+      resolve();
+    }, { once: true });
+    script.addEventListener("error", reject, { once: true });
+    document.head.append(script);
+  });
 }
 
 async function initAuth() {
@@ -1137,10 +1174,14 @@ function renderPaymentPanel(payment, booking) {
   if (!payment || !booking) {
     target.hidden = true;
     target.innerHTML = "";
+    state.squareCard = null;
+    state.squareCardPaymentId = null;
     return;
   }
 
   const isMock = payment.provider === "mock";
+  const isEmbeddedSquare = payment.provider === "square" && payment.checkoutMode === "embedded";
+  const isHostedSquare = payment.provider === "square" && payment.checkoutUrl;
   target.hidden = false;
   target.innerHTML = `
     <div>
@@ -1151,7 +1192,15 @@ function renderPaymentPanel(payment, booking) {
     </div>
     ${isMock
       ? `<button type="button" data-mock-pay="${payment.id}">Complete mock payment</button>`
-      : `<a class="button-link" href="${payment.checkoutUrl}">Continue to Square</a>`}
+      : isEmbeddedSquare
+        ? `<div class="square-checkout">
+            <div id="squareCardContainer" class="square-card-container"></div>
+            <button type="button" id="squarePayButton">Pay ${dollars(payment.amountCents)}</button>
+            <p class="status" id="squarePaymentStatus" role="status">Enter card details to finish your reservation.</p>
+          </div>`
+        : isHostedSquare
+          ? `<a class="button-link" href="${payment.checkoutUrl}">Continue to Square</a>`
+          : `<p class="status">Square checkout is not configured yet.</p>`}
   `;
 
   target.querySelector("[data-mock-pay]")?.addEventListener("click", async buttonEvent => {
@@ -1172,6 +1221,82 @@ function renderPaymentPanel(payment, booking) {
       setText("bookingStatus", error.message);
     }
   });
+
+  if (isEmbeddedSquare) {
+    initSquareCheckout(payment, booking);
+  }
+}
+
+async function initSquareCheckout(payment, booking) {
+  const square = state.config?.settings?.square || {};
+  const button = el("squarePayButton");
+  const status = el("squarePaymentStatus");
+  const container = el("squareCardContainer");
+  if (!button || !status || !container) return;
+
+  button.disabled = true;
+  status.textContent = "Loading secure card form...";
+
+  try {
+    await loadScriptOnce(squareScriptUrl());
+    if (!window.Square) throw new Error("Square payment form could not load.");
+    if (state.squareCard && state.squareCardPaymentId !== payment.id) {
+      await state.squareCard.destroy?.();
+      state.squareCard = null;
+    }
+
+    const payments = window.Square.payments(square.appId, square.locationId);
+    const card = await payments.card();
+    await card.attach("#squareCardContainer");
+    state.squareCard = card;
+    state.squareCardPaymentId = payment.id;
+    button.disabled = false;
+    status.textContent = "Card details stay secure with Square. We only save the booking payment status.";
+
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      button.textContent = "Processing...";
+      status.textContent = "Authorizing payment...";
+      try {
+        const [givenName, ...lastParts] = String(booking.customer?.name || "").trim().split(/\s+/);
+        const tokenResult = await card.tokenize({
+          amount: (Number(payment.amountCents || 0) / 100).toFixed(2),
+          currencyCode: payment.currency || "USD",
+          intent: "CHARGE",
+          customerInitiated: true,
+          sellerKeyedIn: false,
+          billingContact: {
+            givenName: givenName || undefined,
+            familyName: lastParts.join(" ") || undefined,
+            email: booking.customer?.email || undefined,
+            phone: booking.customer?.phone || undefined
+          }
+        });
+        if (tokenResult.status !== "OK") {
+          const message = tokenResult.errors?.map(item => item.message).join(" ") || "Square could not tokenize this card.";
+          throw new Error(message);
+        }
+
+        const result = await api(`/api/payments/${payment.id}/square-card`, {
+          method: "POST",
+          body: JSON.stringify({ sourceId: tokenResult.token })
+        });
+        setText(
+          "bookingStatus",
+          `Payment complete. ${result.booking.experienceName} is confirmed for ${shortDateTime(result.booking.startsAt)}.`
+        );
+        renderPaymentPanel(null, null);
+        await loadAvailability();
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = `Pay ${dollars(payment.amountCents)}`;
+        status.textContent = error.message;
+      }
+    });
+  } catch (error) {
+    button.disabled = true;
+    status.textContent = error.message;
+  }
 }
 
 function setDefaultDate() {
