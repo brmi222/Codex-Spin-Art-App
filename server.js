@@ -294,7 +294,7 @@ function publicStore(store) {
       square: {
         appId: SQUARE_APP_ID,
         locationId: SQUARE_LOCATION_ID,
-        isConfigured: Boolean(SQUARE_APP_ID && SQUARE_LOCATION_ID && SQUARE_ACCESS_TOKEN)
+        isConfigured: isSquareConfigured()
       }
     },
     site: store.site,
