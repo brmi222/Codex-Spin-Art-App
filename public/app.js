@@ -1234,6 +1234,18 @@ async function initSquareCheckout(payment, booking) {
   const container = el("squareCardContainer");
   if (!button || !status || !container) return;
 
+  if (!window.isSecureContext) {
+    container.hidden = true;
+    button.hidden = true;
+    status.innerHTML = `
+      Square embedded checkout needs HTTPS. For local testing, open this same page at
+      <a href="http://localhost:4280/book.html">http://localhost:4280/book.html</a>
+      or use the temporary Square checkout link below.
+      ${payment.checkoutUrl ? `<br><a class="button-link" href="${payment.checkoutUrl}">Continue with Square hosted checkout</a>` : ""}
+    `;
+    return;
+  }
+
   button.disabled = true;
   status.textContent = "Loading secure card form...";
 

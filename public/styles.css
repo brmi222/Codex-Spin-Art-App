@@ -1351,9 +1351,8 @@ textarea {
 
 .payment-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  justify-content: space-between;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
   gap: 1rem;
   margin-top: 1rem;
   padding: 1rem;
@@ -1363,7 +1362,7 @@ textarea {
 }
 
 .square-checkout {
-  width: min(100%, 390px);
+  width: min(100%, 460px);
   display: grid;
   gap: 0.7rem;
 }
@@ -1378,6 +1377,11 @@ textarea {
 
 .square-checkout .status {
   font-size: 0.86rem;
+}
+
+.square-checkout .button-link {
+  width: fit-content;
+  margin-top: 0.7rem;
 }
 
 .payment-panel[hidden] {

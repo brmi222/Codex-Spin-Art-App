@@ -841,7 +841,7 @@ async function createCheckoutPayment(store, booking, breakdown, req) {
     updatedAt: now
   };
 
-  if (provider === "square" && payment.checkoutMode === "hosted") {
+  if (provider === "square") {
     const origin = `${req.headers["x-forwarded-proto"] || "http"}://${req.headers.host}`;
     await createSquarePaymentLink({ payment, booking, business: store.business, origin });
   }
